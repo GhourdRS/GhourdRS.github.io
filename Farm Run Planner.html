@@ -1115,9 +1115,12 @@ function renderInvCount(){
 function renderControls(){
   renderInvCount();
   renderPlayer();
-  $("typeChecks").innerHTML = Object.entries(TYPES).filter(([k,v])=>!v.group).concat([["special",{label:"Special", page:"Farming#Special patches"}]])
+  // A patch type disappears from Run type once every one of its patches is omitted
+  const gone = t => PATCHES.filter(p=>p.type===t).every(p=>omitIds().includes(p.id));
+  const spLeft = SPECIAL.filter(t=>!gone(t));
+  $("typeChecks").innerHTML = Object.entries(TYPES).filter(([k,v])=>!v.group && !gone(k)).concat(spLeft.length ? [["special",{label:"Special", page:"Farming#Special patches"}]] : [])
     .sort((a,b)=>a[1].label.localeCompare(b[1].label)).map(([k,v])=> k==="special"
-      ? checkbox("type_special", "Special", "Cactus, mushroom, belladonna, seaweed, spirit tree, crystal tree, Hespori, anima, coral", SPECIAL.every(t=>S.types.includes(t)), false, v.page)
+      ? checkbox("type_special", "Special", spLeft.map(t=>TYPES[t].label.toLowerCase().replace("hespori","Hespori")).join(", ").replace(/^./,c=>c.toUpperCase()), SPECIAL.every(t=>S.types.includes(t)), false, v.page)
       : checkbox("type_"+k, v.label, "", S.types.includes(k), false, v.page)).join("");
   const manual = TELES.filter(t=>!t[3]), auto = TELES.filter(t=>t[3]);
   const REDIRECT_USE = {pohTav:"Taverley tree patch", pohHos:"Hosidius herb patch", pohBrim:"Brimhaven fruit tree and Tai Bwo Wannai calquat", pohTroll:"Trollheim herb patch"};
@@ -1152,6 +1155,7 @@ function renderControls(){
   document.querySelectorAll("#runPresets .chipbtn").forEach(b=>{
     if(b.dataset.run==="none") return;
     const r = RUNS[b.dataset.run];
+    b.hidden = b.dataset.run!=="all" && r.every(gone);   // its patches are all omitted
     b.classList.toggle("on", r.every(x=>S.types.includes(x)));
   });
   const byLabel = (a,b)=>TYPES[a].label.localeCompare(TYPES[b].label);
