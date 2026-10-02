@@ -1153,7 +1153,10 @@ function renderControls(){
     b.classList.toggle("on", r.every(x=>S.types.includes(x)));
   });
   const byLabel = (a,b)=>TYPES[a].label.localeCompare(TYPES[b].label);
-  const ovKeys = Object.keys(TYPES).filter(k=>!TYPES[k].group).sort(byLabel).concat(["—special"], SPECIAL.slice().sort(byLabel));
+  // Patch types with a single crop have nothing to choose, so they're left out
+  const choice = k => CROPS[k].length > 1;
+  const spOv = SPECIAL.filter(choice).sort(byLabel);
+  const ovKeys = Object.keys(TYPES).filter(k=>!TYPES[k].group && choice(k)).sort(byLabel).concat(spOv.length ? ["—special", ...spOv] : []);
   $("overrides").innerHTML = ovKeys.map(k=>{
     if(k==="—special") return `<div class="ovhead">Special</div>`;
     const opts = CROPS[k].filter(c=>c[1]<=levelFor(k)), T = tiers(k), cur = S.over[k] || "best";
