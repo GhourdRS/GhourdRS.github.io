@@ -1694,6 +1694,44 @@ function bringName(k){
   if(k==="fairy") return "Fairy rings" + (has("lumbElite") ? "" : " (Dramen staff)");
   return teleName(k);
 }
+/* ---------- Map preview on each route step ----------
+   Patch positions in game coordinates (RuneLite world map, Sept 2026); bird houses from the OSRS Wiki.
+   Map tiles: mejrs/layers_osrs (the OSRS Wiki's map source), zoom 2 = 4 px per game tile, 64 tiles per 256 px image. */
+const MAPXY = (()=>{
+  const m = {}, put = (ids, x, y) => ids.split(" ").forEach(id=>m[id]=[x,y]);
+  put("h_fal fl_fal a_fal1 a_fal2",3052,3309); put("h_cath fl_cath a_cath1 a_cath2",2810,3462); put("h_ardy fl_ardy a_ardy1 a_ardy2",2663,3375);
+  put("h_hos fl_hos a_hos1 a_hos2",1729,3558); put("h_mory fl_mory a_mory1 a_mory2",3598,3524); put("h_varl fl_varl a_varl1 a_varl2",1587,3101);
+  put("h_fg an_fg",1235,3724); put("a_fg1 a_fg2",1269,3730); put("fl_fg b_fg",1259,3729); put("a_prif1 a_prif2 fl_prif1",3289,6100); put("cr_prif",3292,6120);
+  put("h_harm",3789,2840); put("a_harm1",3793,2836); put("h_troll",2828,3696); put("h_weiss",2847,3933); put("fl_kast",1352,3025);
+  put("t_var",3226,3457); put("t_lum",3189,3233); put("t_fal",3005,3375); put("t_tav",2933,3436); put("t_gnome",2434,3418); put("t_fg",1234,3736); put("t_nemus",1366,3318);
+  put("f_gnome",2472,3445); put("f_tgv",2487,3181); put("f_cath",2858,3432); put("f_brim",2765,3211); put("f_llet",2343,3160); put("f_fg cel_fg",1242,3755); put("f_kast",1347,3058);
+  put("c_tai",2793,3099); put("c_shore",3125,2403); put("c_kast",1365,3035); put("rw_fg",1233,3754);
+  put("hw_f1 hw_f2 hw_f3",3707,3838); put("hw_locus",1683,2971); put("hw_angler",2472,2705);
+  put("bh_forest",3677,3882); put("bh_tar",3679,3815); put("bh_valley1",3768,3761); put("bh_valley2",3763,3755);
+  put("b_champ",3182,3356); put("b_rim",2938,3223); put("b_ardy",2615,3224); put("b_etc",2589,3862);
+  put("hp_lum",3224,3313); put("hp_seers",2661,3523); put("hp_yan",2572,3102); put("hp_entrana",2812,3334); put("hp_ald",1367,2938);
+  for(let i=1;i<=12;i++) m["gr_"+i] = [1807,3555];
+  put("cx_alk",3313,3201); put("cx_fg",1264,3745); put("mu_can",3449,3471); put("bd_draynor",3084,3356); put("bd_auburn",1449,3354);
+  put("sw_1 sw_2",3730,10271); put("co_1 co_2",3296,8861); put("hs_fg",1240,3729);
+  put("st_sarim",3056,3259); put("st_hos",1690,3540); put("st_etc",2614,3856); put("st_brim",2799,3205); put("st_fg",1254,3753);
+  return m;
+})();
+const MAP_TILE = (tx,ty) => `https://raw.githubusercontent.com/mejrs/layers_osrs/master/mapsquares/-1/2/0_${tx}_${ty}.png`;
+function mapTip(group, title){
+  const pts = group.map(s=>MAPXY[s.p.id]).filter(Boolean);
+  if(!pts.length) return "";
+  const W = 300, H = 200, [cx, cy] = pts[0], tx = Math.floor(cx/64), ty = Math.floor(cy/64);
+  const pos = (x,y)=>[(x-(tx-1)*64)*4+2, ((ty+2)*64-1-y)*4+2];          // pixel inside the 3×3 tile block (north is up)
+  const [px,py] = pos(cx,cy), ox = W/2-px, oy = H/2-py;
+  let tiles = "";
+  for(let r=0;r<3;r++) for(let c=0;c<3;c++)
+    tiles += `<img src="${MAP_TILE(tx-1+c, ty+1-r)}" alt="" style="position:absolute;left:${c*256}px;top:${r*256}px;width:256px;height:256px;image-rendering:pixelated" onerror="this.style.visibility='hidden'">`;
+  const seen = new Set(), marks = pts.filter(([x,y])=>{ const k=x+","+y; if(seen.has(k)) return false; seen.add(k); return true; })
+    .map(([x,y])=>{ const [mx,my] = pos(x,y); return `<span style="position:absolute;left:${mx+ox-7}px;top:${my+oy-7}px;width:14px;height:14px;border-radius:50%;background:#ff3b2f;border:2px solid #fff;box-shadow:0 0 0 2px #000,0 0 10px #ff3b2f"></span>`; }).join("");
+  return `<div class="tn">${esc(title)}</div><div style="position:relative;width:${W}px;height:${H}px;overflow:hidden;margin-top:4px;background:#0b0b0b;border:1px solid #000">`
+    + `<div style="position:absolute;left:${ox}px;top:${oy}px;width:768px;height:768px">${tiles}</div>${marks}</div>`
+    + `<div class="tsub" style="margin-top:3px">Map: OSRS world map (mejrs / OSRS Wiki)</div>`;
+}
 /* Patches at the same spot (same cluster, one after another) form a single step */
 function numberSteps(stops){
   let n = 0;
@@ -1866,7 +1904,8 @@ function renderRoute(){
       // Completed steps start minimized; the toggle overrides that until the tick changes
       const skey = ids.join(","), override = (S.stepFold||{})[skey];
       const folded = override===undefined ? done : override;
-      return `<li class="stop${done?' done':''}${folded?' folded':''}">
+      const mt = mapTip(group, where);
+      return `<li class="stop${done?' done':''}${folded?' folded':''}"${mt?` data-tip="map" data-tiph="${esc(mt).replace(/"/g,"&quot;")}"`:""}>
         <div class="num">${s0.n}</div>
         <div class="body">
           <div class="stephead"><span class="where">${where}</span><span class="type">${types}</span></div>
