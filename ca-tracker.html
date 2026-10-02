@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Combat Achievements Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&display=swap" rel="stylesheet">
+<style>
+/* digits only: a clearer pixel face so 5/6/8/9 stay distinct */
+@font-face{font-family:"Digits";src:url(https://fonts.gstatic.com/s/vt323/v18/pxiKyp0ihIEF2hsY.ttf) format("truetype");unicode-range:U+0030-0039,U+002C,U+002E,U+002F;size-adjust:135%;font-display:swap}
+:root{--bg:#161616;--panel:#262626;--panel2:#333;--line:#0d0d0d;--text:#f2f2f2;--dim:#9a9a9a;--gold:#ff8a1f;--ok:#2fd02f;
+--t1:#7fd4a0;--t2:#6fb4f0;--t3:#e6d36a;--t4:#f0964f;--t5:#e0625a;--t6:#b27cf0}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 "Segoe UI",Verdana,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:2px solid var(--line);padding:12px 16px}
+h1{margin:0 0 8px;font:700 20px Georgia,"Palatino Linotype",serif;color:var(--gold)}
+.stats{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+.big{font:700 28px Georgia,serif;color:var(--gold)}
+.bar{flex:1 1 260px;min-width:220px}
+.track{height:12px;background:#15120e;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.fill{height:100%;background:var(--ok);width:0;transition:width .25s}
+.sub{color:var(--dim);font-size:13px;margin-top:3px}
+.bar-row{display:flex;justify-content:space-between;gap:8px}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+input[type=text],select{background:#15120e;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:7px 9px;font:inherit}
+input[type=text]{width:170px}
+button,a.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:7px 12px;font:inherit;cursor:pointer;text-decoration:none}
+button:hover,a.btn:hover{border-color:var(--gold)}
+button.primary{background:var(--gold);color:#241a06;border-color:var(--gold);font-weight:700}
+.chip{display:inline-flex;gap:6px;align-items:center;border-left:4px solid var(--c);opacity:.5}
+.chip.on{opacity:1;border:2px solid var(--c);border-left-width:4px;background:#43382a;background:color-mix(in srgb,var(--c) 22%,#2c271f);font-weight:700;box-shadow:0 0 0 1px var(--c)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+main{max-width:980px;margin:0 auto;padding:12px 16px 60px}
+#msg{margin:8px 0;padding:8px 12px;border-radius:6px;background:var(--panel);border:1px solid var(--line);display:none}
+#msg.err{border-color:var(--t5)}
+details{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin:8px 0}
+summary{cursor:pointer;padding:10px 14px;display:flex;justify-content:space-between;gap:10px;font:700 16px Georgia,serif;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary span.n{font:400 13px "Segoe UI",sans-serif;color:var(--dim)}
+summary.done{color:var(--ok)}
+ul{list-style:none;margin:0;padding:0 8px 8px}
+li label{display:flex;gap:10px;align-items:flex-start;padding:7px 8px;border-radius:6px;cursor:pointer}
+li label:hover{background:var(--panel2)}
+li input{margin-top:4px;width:17px;height:17px;accent-color:var(--ok);flex:none}
+.tier{flex:none;min-width:34px;text-align:center;font-size:12px;font-weight:700;color:#1a1408;background:var(--c);border-radius:4px;padding:1px 5px;margin-top:2px}
+.nm{font-weight:600}.ds{color:var(--dim);font-size:13.5px}
+li.done .nm{text-decoration:line-through;color:var(--dim)}
+.empty{padding:40px;text-align:center;color:var(--dim)}
+.head{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:8px}.head h1{margin:0}
+.tip{position:relative}
+button.info{width:22px;height:22px;padding:0;border-radius:50%;font:italic 700 13px Georgia,serif;line-height:1;color:var(--gold);border-color:var(--gold)}
+.tipbox{display:none;position:absolute;top:30px;left:0;z-index:10;width:min(340px,86vw);background:var(--panel2);border:1px solid var(--gold);border-radius:8px;padding:10px 12px;font-size:13.5px;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.tip:hover .tipbox,.tip:focus-within .tipbox{display:block}
+.tipbox dl{margin:6px 0 0}.tipbox dt{font-weight:700;color:var(--gold);margin-top:6px}.tipbox dd{margin:0;color:var(--text)}
+/* RuneProfile look: charcoal panels, orange labels, green completed, white text with pixel shadow */
+body,button,input,select,summary,.tipbox{text-shadow:1px 1px 0 #000}
+h1,.big,summary{font-family:inherit}
+header{border-bottom:3px solid #000;box-shadow:inset 0 -1px 0 #3d3d3d}
+.track{height:39px;background:#111;border:2px solid #000;border-radius:3px;box-shadow:inset 0 0 0 1px #3a3a3a}
+.fill{background:linear-gradient(#5bef5b,#1fa81f 55%,#178a17);border-radius:0}
+.bar{position:relative}
+.bar-row{position:absolute;inset:0;justify-content:center;align-items:center;z-index:1;pointer-events:none}
+.bar-row b{font-weight:400;color:#fff}
+input[type=text],select{background:#1a1a1a;border:2px solid #000;border-radius:3px;box-shadow:inset 0 0 0 1px #3a3a3a;color:var(--gold)}
+button,a.btn{background:#222;color:var(--gold);border:2px solid #000;border-radius:3px;box-shadow:inset 0 0 0 1px #444}
+button:hover,a.btn:hover{background:#2e2e2e;border-color:#000;box-shadow:inset 0 0 0 1px var(--gold)}
+button.primary{background:#3a2308;color:var(--gold);font-weight:700}
+.chip{color:var(--text)}
+details{background:#222;border:2px solid #000;border-radius:3px;box-shadow:inset 0 0 0 1px #3a3a3a}
+summary{color:var(--gold)}
+summary.done{color:var(--ok)}
+summary span.n{color:var(--text)}
+li:nth-child(odd) label{background:#1d1d1d}
+li:nth-child(even) label{background:#2a2a2a}
+li label{border-radius:0}
+li label:hover{background:#3a3a3a}
+.nm{color:#b8b8b8;font-weight:400;font-size:16px}
+li.done .nm{color:var(--ok);text-decoration:none}
+.ds{color:var(--text)}
+#msg{background:#222;border:2px solid #000;border-radius:3px}
+.tipbox{background:#222;border:2px solid #000;box-shadow:inset 0 0 0 1px var(--gold),0 6px 18px rgba(0,0,0,.6);border-radius:3px}
+.combo{display:inline-flex}
+.combo input{border-top-right-radius:0;border-bottom-right-radius:0;border-right:0}
+.combo button{border-top-left-radius:0;border-bottom-left-radius:0;padding:5px 12px;font-size:18px;line-height:1}
+.bar{position:static}
+.wrap{position:relative}
+.tierline{font-size:16px;font-weight:700;color:var(--gold);margin-bottom:4px;min-height:1.4em;text-align:center}
+/* RuneScape UF-style block lettering (pixel font; uses RuneScape UF itself if installed) */
+:root{--f:"Digits","RuneScape UF","Pixelify Sans","Trebuchet MS",sans-serif}
+*{font-family:var(--f)!important;font-style:normal!important;-webkit-font-smoothing:none;font-smooth:never;letter-spacing:.2px}
+body{font-size:16px}
+.nm{font-size:17px}
+.ds{font-size:15px}
+.sub,summary span.n{font-size:14px}
+/* all font sizes +20% */
+body{font-size:19.2px}
+h1{font-size:24px}
+.big{font-size:33.6px}
+.sub,summary span.n{font-size:16.8px}
+summary{font-size:19.2px}
+.tier{font-size:14.4px}
+.ds{font-size:18px}
+.nm{font-size:20.4px}
+.tipbox{font-size:16.2px}
+button.info{font-size:15.6px;width:26px;height:26px}
+.combo button{font-size:21.6px}
+.tierline{font-size:19.2px}
+/* crisper text: smoothing on, whole-pixel sizes, no fractional letter-spacing */
+*{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-smooth:auto;text-rendering:optimizeLegibility;letter-spacing:0}
+body{font-size:19px}
+.big{font-size:34px}
+.sub,summary span.n{font-size:17px}
+summary{font-size:19px}
+.tier{font-size:14px}
+.ds{font-size:18px}
+.nm{font-size:20px}
+.tipbox{font-size:16px}
+button.info{font-size:16px}
+.combo button{font-size:22px}
+.tierline{font-size:19px}
+summary .right{display:flex;align-items:center;gap:14px}
+button.bossall{padding:2px 10px;font-size:17px}
+summary.none{color:#a0a0a0}
+summary.done span.n{color:var(--ok)}
+summary.part span.n{color:var(--gold)}
+summary.none span.n{color:#a0a0a0}
+.tipbox p.tipinfo{margin:6px 0 14px}
+.tipbox b,.tipbox dt{color:var(--gold);font-size:17.6px}
+.tipbox b.ti{font-size:19.2px}
+.tipbox a{color:var(--text);text-decoration:underline;word-break:break-all}
+.tipbox a:hover{color:var(--gold)}
+.tipbox::before{content:"";position:absolute;left:0;right:0;top:-10px;height:10px}
+.txt{flex:1 1 0;min-width:0}
+.tiername{flex:none;width:135px;margin-top:2px;color:var(--c)}
+.pct{flex:none;width:135px;white-space:nowrap;margin-top:2px;text-align:right}
+@media(max-width:640px){.tiername{display:none}.pct{width:120px}}
+#barwrap{cursor:pointer}
+.modal{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:16px}
+.modal[hidden]{display:none}
+.mbox{background:#222;border:2px solid #000;box-shadow:inset 0 0 0 1px #3a3a3a;border-radius:3px;width:min(680px,100%);max-height:86vh;overflow:auto;padding:16px}
+.mhead{display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--gold);font-size:22px}
+.rsec{margin:12px 0;padding:10px 12px;border:2px solid #000;background:#1d1d1d}
+.rsec.next{box-shadow:0 0 0 2px var(--gold)}
+.rsec.got{box-shadow:0 0 0 2px var(--ok)}
+.rhead{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+.rhead h3{margin:0;font-size:20px;font-weight:700;color:var(--c)}
+.rstat{font-size:17px}
+.rstat.ok{color:var(--ok)}.rstat.todo{color:#ffd42a}
+.rsec ul{list-style:disc;margin:8px 0 0;padding:0 0 0 22px}
+.rsec li{margin:2px 0}
+.rsec{padding:0;background:#1d1d1d;border-radius:0}
+.rsec>summary.rhead{padding:10px 12px;cursor:pointer;font-size:inherit;color:inherit;background:#333}
+.rsec>summary.rhead:hover{background:#3d3d3d}
+.rsec[open]>summary.rhead{border-bottom:2px solid #000}
+.rsec ul{margin:0;padding:10px 12px 10px 34px}
+.mbtns{display:flex;gap:8px}
+.rnote{color:var(--dim);margin:8px 0 0}
+.rnote a{color:var(--text)}
+.by{font-size:17px;color:var(--text)}
+.author{position:relative;display:inline-block}
+.author>a{color:var(--gold);text-decoration:underline}
+.author>a:hover{color:#fff}
+.rpcard{display:none;position:absolute;top:100%;left:0;margin-top:8px;z-index:20;width:min(430px,88vw);background:#222;border:2px solid #000;box-shadow:inset 0 0 0 1px var(--gold),0 6px 18px rgba(0,0,0,.6);border-radius:3px;padding:12px 14px;font-size:16px;color:var(--text)}
+.rpcard::before{content:"";position:absolute;left:0;right:0;top:-10px;height:10px}
+.author:hover .rpcard,.author:focus-within .rpcard{display:block}
+.rphd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px}
+.rphd b{font-size:22px;color:var(--gold)}
+.rpsub{color:var(--dim)}
+.rpstats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.rpstats div{background:#333;border:2px solid #000;box-shadow:inset 0 0 0 1px #444;padding:4px 6px;text-align:center}
+.rpstats b{display:block;font-size:19px;color:var(--gold)}
+.rpstats span{font-size:13px;color:var(--dim)}
+.rpskills{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:2px 10px}
+.rpskills li{display:flex;justify-content:space-between;gap:6px;padding:1px 6px;font-size:15px}
+.rpskills li:nth-child(odd){background:#1d1d1d}
+.rpskills li:nth-child(even){background:#2a2a2a}
+.rpskills b{font-weight:400;color:var(--ok)}
+.rpnote{margin-top:8px;font-size:13px;color:var(--dim)}
+.rpopen{display:inline-block;margin-top:6px;color:var(--text);text-decoration:underline}
+.rpopen:hover{color:var(--gold)}
+@media(max-width:560px){.rpstats{grid-template-columns:repeat(2,1fr)}.rpskills{grid-template-columns:repeat(2,1fr)}}
+@media(prefers-reduced-motion:reduce){.fill{transition:none}}
+.crumbs{margin:0 0 6px;font-size:16px}
+.crumbs a{color:var(--dim);text-decoration:none}
+.crumbs a:hover{color:var(--gold);text-decoration:underline}
+</style>
+</head>
+<body>
+<header>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="index.html">&larr; Ghourd's OSRS Tools</a></nav>
+  <div class="head"><h1>Combat Achievements Tracker</h1>
+    <span class="tip"><button class="info" aria-describedby="tipbox" aria-label="Shortcuts and tips">i</button>
+      <div class="tipbox" id="tipbox" role="tooltip">
+        <b class="ti">Info</b>
+        <p class="tipinfo">RuneProfile plugin must be synced within RuneLite Plugin Hub for target account in order to use this tool.</p>
+        <b class="ti">How to set up RuneProfile</b>
+        <p class="tipinfo"><a href="https://www.runeprofile.com/info/guide" target="_blank" rel="noopener">https://www.runeprofile.com/info/guide</a></p>
+        <dl>
+          <dt>Ctrl + click a task</dt><dd>Open its wiki page in a new tab (Cmd + click on Mac)</dd>
+          <dt>Click a task</dt><dd>Select or deselect it</dd>
+          <dt>Click a boss name</dt><dd>Expand or collapse its tasks</dd>
+          <dt>Click a tier button</dt><dd>Show or hide that tier</dd>
+          <dt>Search</dt><dd>Matches task, description, or boss</dd>
+        </dl>
+      </div></span>
+    <span class="by">created by <span class="author"><a href="https://runeprofile.com/ghourd" target="_blank" rel="noopener" aria-describedby="rpcard">Ghourd</a>
+      <div class="rpcard" id="rpcard" role="tooltip">
+        <div class="rphd"><b class="ti">Ghourd</b><span class="rpsub">RuneProfile</span></div>
+        <div class="rpstats">
+          <div><b>125</b><span>Combat level</span></div>
+          <div><b>2130</b><span>Total level</span></div>
+          <div><b>299 / 655</b><span>CA tasks</span></div>
+          <div><b>966</b><span>CA points</span></div>
+        </div>
+        <ul class="rpskills"><li><span>Attack</span><b>99</b></li><li><span>Hitpoints</span><b>99</b></li><li><span>Mining</span><b>81</b></li><li><span>Strength</span><b>99</b></li><li><span>Agility</span><b>90</b></li><li><span>Smithing</span><b>85</b></li><li><span>Defence</span><b>99</b></li><li><span>Herblore</span><b>90</b></li><li><span>Fishing</span><b>88</b></li><li><span>Ranged</span><b>99</b></li><li><span>Thieving</span><b>99</b></li><li><span>Cooking</span><b>95</b></li><li><span>Prayer</span><b>97</b></li><li><span>Crafting</span><b>86</b></li><li><span>Firemaking</span><b>82</b></li><li><span>Magic</span><b>99</b></li><li><span>Fletching</span><b>81</b></li><li><span>Woodcutting</span><b>76</b></li><li><span>Runecraft</span><b>80</b></li><li><span>Slayer</span><b>95</b></li><li><span>Farming</span><b>82</b></li><li><span>Construction</span><b>85</b></li><li><span>Hunter</span><b>81</b></li><li><span>Sailing</span><b>63</b></li></ul>
+        <div class="rpnote">Snapshot of the profile when this tool was built.</div>
+        <a class="rpopen" href="https://runeprofile.com/ghourd" target="_blank" rel="noopener">Open full RuneProfile page</a>
+      </div></span></span></div>
+  <div class="stats">
+    <div><div class="big" id="pts">0</div><div class="sub" id="cnt">0 / 0 tasks</div></div>
+    <div class="bar">
+      <div class="tierline" id="tier"></div>
+      <div class="wrap" id="barwrap" role="button" tabindex="0" title="Click to see rewards" aria-label="Show Combat Achievement rewards">
+        <div class="bar-row"><b id="next">Loading…</b></div>
+        <div class="track"><div class="fill" id="fill"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="tools">
+    <span class="combo"><input type="text" id="rsn" placeholder="Username" aria-label="RuneScape name"><button class="primary" id="sync" title="Sync from RuneProfile" aria-label="Sync from RuneProfile">&rarr;</button></span>
+    <input type="text" id="q" placeholder="Search" aria-label="Search">
+    <button id="markall" title="Select every task currently shown. Counts as a manual selection.">Mark all complete</button>
+    <button id="clearman" title="Deselect tasks you selected by hand. Tasks synced from RuneProfile stay selected.">Clear manual selections</button>
+    <button id="reset">Clear all</button>
+  </div>
+  <div class="tools">
+    <select id="show" aria-label="Show"><option value="all">All tasks</option><option value="todo">Incomplete</option><option value="done">Completed</option></select>
+    <select id="sort" aria-label="Sort tasks"><option value="tier">Sort by Comp%</option><option value="comp-asc">Comp% Low to High</option><option value="comp-desc">Comp% High to Low</option></select>
+    <button id="toggleall">Expand all</button>
+    <button id="selall" title="Show or hide every tier">Select all</button>
+    <span id="chips" style="display:contents"></span>
+  </div>
+</header>
+<main>
+  <div id="msg" role="status"></div>
+  <div id="list"></div>
+</main>
+<div class="modal" id="rewards" hidden>
+  <div class="mbox" role="dialog" aria-modal="true" aria-labelledby="rtitle">
+    <div class="mhead"><b id="rtitle">Combat Achievement rewards</b><span class="mbtns"><button id="rtoggle" type="button">Expand all</button><button id="rclose" type="button">Close</button></span></div>
+    <div id="rbody"></div>
+    <p class="rnote">Source: <a href="https://oldschool.runescape.wiki/w/Combat_Achievements" target="_blank" rel="noopener">OSRS Wiki: Combat Achievements</a></p>
+  </div>
+</div>
+<script>
+const TIERS=[["Easy",1,"--t1"],["Medium",2,"--t2"],["Hard",3,"--t3"],["Elite",4,"--t4"],["Master",5,"--t5"],["Grandmaster",6,"--t6"]];
+const WIKI="https://oldschool.runescape.wiki/api.php?action=bucket&format=json&origin=*&query="+encodeURIComponent("bucket('combat_achievement').select('id','name','monster','tier','type','task').limit(2000).run()");
+const $=id=>document.getElementById(id), LS=localStorage;
+let synced=new Set(JSON.parse(localStorage.getItem("ca-synced")||"[]"));
+let tasks=[], done=new Set(JSON.parse(LS.getItem("ca-done")||"[]")), tierOn=new Set(TIERS.map(t=>t[0]));
+const save=()=>{try{LS.setItem("ca-done",JSON.stringify([...done]))}catch(e){}};
+// On launch, drop manual selections: keep only tasks from the last RuneProfile sync
+done=new Set([...done].filter(i=>synced.has(i)));save();
+const msg=(t,err)=>{const m=$("msg");m.textContent=t;m.className=err?"err":"";m.style.display=t?"block":"none"};
+const tierIdx=v=>{if(typeof v==="number")return v-1;const i=TIERS.findIndex(t=>t[0].toLowerCase()===String(v).toLowerCase());return i};
+const pts=t=>TIERS[t.tier][1];
+
+async function loadThresholds(){
+  try{
+    const r=await fetch("https://oldschool.runescape.wiki/api.php?action=parse&page=Combat_Achievements&prop=text&format=json&formatversion=2&origin=*");
+    const j=await r.json();
+    const d=new DOMParser().parseFromString(j.parse.text,"text/html");
+    for(const t of d.querySelectorAll("table")){
+      if(!/Points required for rewards/i.test(t.textContent))continue;
+      const vals=[];
+      t.querySelectorAll("tr").forEach(tr=>{
+        const c=[...tr.querySelectorAll("td")].map(td=>parseInt(td.textContent.replace(/[^0-9]/g,""),10)).filter(n=>!isNaN(n));
+        if(c.length>=4)vals.push(c[c.length-1]);
+      });
+      if(vals.length===6&&vals.every((v,i)=>i===0||v>vals[i-1])){TH=vals;try{LS.setItem("ca-th",JSON.stringify(vals))}catch(e){}break}
+    }
+  }catch(e){}
+  renderStats();
+}
+async function load(){
+  try{
+    const c=JSON.parse(LS.getItem("ca-tasks")||"null");
+    if(c&&c.length){tasks=c;render()}
+    const r=await fetch(WIKI);const j=await r.json();
+    const rows=(j.bucket||[]).map(x=>({id:+x.id,name:x.name,monster:x.monster,tier:tierIdx(x.tier),task:x.task||""})).filter(x=>x.tier>=0&&!isNaN(x.id));
+    if(!rows.length)throw new Error("Wiki returned no tasks");
+    tasks=rows;try{LS.setItem("ca-tasks",JSON.stringify(rows))}catch(e){}
+    msg("");render();
+  }catch(e){ if(!tasks.length)msg("Could not load the task list from the OSRS Wiki ("+e.message+"). Open this file directly in your browser (not inside a sandbox) and check your connection.",1); }
+}
+
+let TH=null;try{const c=JSON.parse(localStorage.getItem("ca-th")||"null");if(Array.isArray(c)&&c.length===6)TH=c}catch(e){}
+function stats(){
+  let p=0,n=0;const cum=TIERS.map(()=>0);
+  tasks.forEach(t=>{cum[t.tier]+=pts(t);if(done.has(t.id)){p+=pts(t);n++}});
+  for(let i=1;i<6;i++)cum[i]+=cum[i-1];
+  return{p,n,cum:TH||cum};
+}
+const manualCount=()=>[...done].filter(i=>!synced.has(i)).length;
+function renderStats(){
+  $("clearman").textContent="Clear manual selections ("+manualCount()+")";
+  const{p,n,cum}=stats();
+  $("pts").textContent=n+" / "+tasks.length;
+  $("cnt").textContent="tasks completed";
+  const k=cum.findIndex(c=>p<c);
+  if(!tasks.length){return}
+  const cur=k<0?5:k-1;
+  $("tier").textContent="Current reward tier: "+(cur<0?"None":TIERS[cur][0]);
+  if(k<0){$("next").textContent="Total Points: "+p.toLocaleString()+" - All reward tiers unlocked";$("fill").style.width="100%";return}
+  const prev=k?cum[k-1]:0;
+  $("next").textContent="Total Points: "+p.toLocaleString()+" - Next unlock in "+(cum[k]-p)+" points";
+  $("fill").style.width=Math.max(0,(p-prev)/(cum[k]-prev)*100)+"%";
+}
+
+function renderChips(){
+  $("chips").innerHTML="";
+  TIERS.forEach(([n,,c],i)=>{
+    const tot=tasks.filter(t=>t.tier===i),d=tot.filter(t=>done.has(t.id)).length;
+    const b=document.createElement("button");b.className="chip"+(tierOn.has(n)?" on":"");b.style.setProperty("--c","var("+c+")");
+    b.textContent=n+" "+d+"/"+tot.length;b.setAttribute("aria-pressed",tierOn.has(n));
+    b.onclick=()=>{tierOn.has(n)?tierOn.delete(n):tierOn.add(n);render()};
+    $("chips").appendChild(b);
+  });
+}
+
+const key=x=>x.toLowerCase().replace(/[^a-z0-9 ]/g,"");
+const ALIAS={toa:"tombs of amascut",cox:"chambers of xeric",tob:"theatre of blood","raids 1":"chambers of xeric","raids 2":"theatre of blood","raids 3":"tombs of amascut",sara:"commander zilyana",saradomin:"commander zilyana",bandos:"general graardor",arma:"kreearra",armadyl:"kreearra",kril:"kril tsutsaroth",zammy:"kril tsutsaroth",zamorak:"kril tsutsaroth"};
+let PCT={};try{PCT=JSON.parse(localStorage.getItem("ca-pct")||"{}")||{}}catch(e){PCT={}}
+const fmtPct=id=>{const v=PCT[id];return v==null||isNaN(v)?"\u2014":(v>=100?"100":v.toFixed(1))+"%"};
+async function loadPct(){
+  try{
+    const r=await fetch("https://oldschool.runescape.wiki/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&titles="+encodeURIComponent("Module:Combat_Achievements/completion.json")+"&format=json&formatversion=2&origin=*");
+    const j=await r.json();
+    const raw=j.query.pages[0].revisions[0].slots.main.content;
+    const o=JSON.parse(raw),m={};let max=0;
+    Object.entries(o).forEach(([k,v])=>{const n=typeof v==="number"?v:parseFloat(v);if(!isNaN(n)){m[k]=n;if(n>max)max=n}});
+    if(max<=1)Object.keys(m).forEach(k=>m[k]*=100);
+    if(Object.keys(m).length){PCT=m;try{LS.setItem("ca-pct",JSON.stringify(m))}catch(e){}render()}
+  }catch(e){}
+}
+const REWARDS=[
+["Antique lamp (5,000 XP, level 20+)","5% increased chance to receive an easy clue scroll","Ghommal's hilt 1 (3 daily teleports to the God Wars Dungeon)","Slayer task customization (up to 40 kills)","Additional Void Knight commendation point per Pest Control game","100% bonus Warriors' Guild tokens"],
+["Antique lamp (10,000 XP, level 30+)","5% increased chance to receive a medium clue scroll","Ghommal's hilt 2 (5 daily teleports)","Prayer drain negated at Barrows (when equipped)","Slayer task customization (up to 45 kills)","200% bonus Warriors' Guild tokens","Two additional Void Knight commendation points","Multicannon capacity increased to 35 cannonballs"],
+["Antique lamp (15,000 XP, level 40+)","5% increased chance to receive a hard clue scroll","Ghommal's hilt 3 (unlimited God Wars Dungeon teleports)","Follower kill count reduced to 35 (from 40)","Improved ecumenical key drop rate","150,000 coins private instance fee for God Wars bosses","Reduced instance fees for The Hueycoatl, Sarachnis and Giant Mole","Dragon hunter crossbow (b) creation","50% cost reduction for imbuing at Nightmare Zone and Soul Wars","Three additional Void Knight commendation points","Multicannon capacity increased to 45 cannonballs"],
+["Antique lamp (25,000 XP, level 50+)","5% increased chance to receive an elite clue scroll","Ghommal's hilt 4 (3 daily Mor Ul Rek teleports)","Slayer task customization (up to 55 kills)","Follower kill count reduced to 30 (from 35)","Further improved key drop rate (1/50)","125,000 coins private instance fee","Dragon hunter crossbow (t) creation","TzTok slayer helmet creation","Bracelet recharge improvement (10% chance of a full recharge)","Superior slayer spawn rate improved to 1/150","Multicannon capacity increased to 60 cannonballs"],
+["Antique lamp (35,000 XP, level 60+)","Ghommal's hilt 5 (5 daily Mor Ul Rek teleports)","Ghommal's avernic defender 5 creation","Ghommal's lucky penny (5% charge usage reduction when consumed)","Slayer task customization (up to 60 kills)","2 kills per task for TzTok-Jad and TzKal-Zuk","Follower kill count reduced to 25 (from 30)","Enhanced key drop rate (1/45)","100,000 coins private instance fee","Vampyric slayer helmet creation","Thralls last twice as long"],
+["Antique lamp (50,000 XP, level 70+)","Ghommal's hilt 6 (unlimited Mor Ul Rek teleports)","Ghommal's avernic defender 6 creation","Slayer task customization (up to 65 kills)","3 kills per task for TzTok-Jad and TzKal-Zuk","Follower kill count reduced to 15 (from 25)","Best key drop rate (1/40)","75,000 coins private instance fee","TzKal slayer helmet creation with on-task bonuses for the Fight Cave and Inferno"]
+];
+function updR(){const ds=[...document.querySelectorAll("#rbody details")];$("rtoggle").textContent=ds.some(d=>d.open)?"Collapse all":"Expand all"}
+function openRewards(){
+  const{p,cum}=stats();const body=$("rbody");body.innerHTML="";
+  const next=cum.findIndex(c=>p<c);
+  TIERS.forEach((tr,i)=>{
+    const sec=document.createElement("details");sec.className="rsec"+(i===next?" next":"")+(p>=cum[i]?" got":"");
+    const head=document.createElement("summary");head.className="rhead";
+    const h=document.createElement("h3");h.style.setProperty("--c","var("+tr[2]+")");h.textContent=tr[0]+" - "+cum[i].toLocaleString()+" points";
+    const st=document.createElement("span");const got=p>=cum[i];st.className="rstat "+(got?"ok":"todo");
+    st.textContent=got?"Unlocked":(cum[i]-p).toLocaleString()+" points to go";
+    head.append(h,st);
+    sec.ontoggle=updR;
+    const ul=document.createElement("ul");REWARDS[i].forEach(r=>{const li=document.createElement("li");li.textContent=r;ul.appendChild(li)});
+    sec.append(head,ul);body.appendChild(sec);
+  });
+  updR();$("rewards").hidden=false;$("rclose").focus();
+}
+const closeRewards=()=>{$("rewards").hidden=true;$("barwrap").focus()};
+const openBosses=new Set();let shown=[],visible=[],autoOpen=false;
+function updSel(){$("selall").textContent=tierOn.size===TIERS.length?"Deselect all":"Select all"}
+function updToggle(){const any=shown.some(b=>openBosses.has(b));$("toggleall").textContent=any?"Collapse all":"Expand all";$("toggleall").disabled=!shown.length}
+function render(){
+  renderChips();renderStats();
+  const q=$("q").value.trim().toLowerCase(),show=$("show").value;
+  const qq=q.replace(/\s+/g," ");
+  const fulls=q?Object.keys(ALIAS).filter(a=>a.startsWith(qq)).map(a=>ALIAS[a]):[];
+  const by={};const vis=[];
+  tasks.forEach(t=>{
+    if(!tierOn.has(TIERS[t.tier][0]))return;
+    const d=done.has(t.id);if(show==="todo"&&d||show==="done"&&!d)return;
+    if(q&&!((t.name+" "+t.task+" "+t.monster).toLowerCase().includes(q)||fulls.some(f=>key(t.monster).startsWith(f))))return;
+    (by[t.monster]=by[t.monster]||[]).push(t);vis.push(t);
+  });
+  visible=vis;updSel();
+  const L=$("list");L.innerHTML="";
+  const bosses=Object.keys(by).sort((a,b)=>a.localeCompare(b));
+  shown=bosses;
+  if(!bosses.length){updToggle();L.innerHTML='<div class="empty">'+(tasks.length?"No tasks match these filters.":"Loading tasks…")+'</div>';return}
+  bosses.forEach(b=>{
+    const all=tasks.filter(t=>t.monster===b),dn=all.filter(t=>done.has(t.id)).length;
+    const det=document.createElement("details");det.open=openBosses.has(b);
+    det.ontoggle=()=>{det.open?openBosses.add(b):openBosses.delete(b);updToggle()};
+    const s=document.createElement("summary");if(dn===all.length)s.className="done";else if(dn===0)s.className="none";else s.className="part";
+    const nameEl=document.createElement("span");nameEl.textContent=b;
+    const right=document.createElement("span");right.className="right";
+    const list=by[b],allSel=list.every(t=>done.has(t.id));
+    const ba=document.createElement("button");ba.type="button";ba.className="bossall";
+    ba.textContent=allSel?"Revert":"Select all";
+    ba.title=allSel?"Return this boss's visible tasks to your RuneProfile data":"Select every visible task for this boss";
+    ba.onclick=e=>{e.preventDefault();e.stopPropagation();
+      list.forEach(t=>{if(allSel){synced.has(t.id)?done.add(t.id):done.delete(t.id)}else done.add(t.id)});
+      save();render()};
+    const cnt=document.createElement("span");cnt.className="n";cnt.textContent=dn+" / "+all.length+" done";
+    if(!all.every(t=>synced.has(t.id)))right.append(ba);
+    right.append(cnt);
+    s.append(nameEl,right);
+    det.appendChild(s);
+    const ul=document.createElement("ul");
+    const so=$("sort").value;
+    by[b].sort((x,y)=>{
+      if(so!=="tier"){const a=PCT[x.id],c=PCT[y.id],an=a==null,cn=c==null;
+        if(an!==cn)return an?1:-1;
+        if(!an&&a!==c)return so==="comp-desc"?c-a:a-c}
+      return x.tier-y.tier||x.name.localeCompare(y.name)}).forEach(t=>{
+      const li=document.createElement("li");if(done.has(t.id))li.className="done";
+      const lab=document.createElement("label");
+      const cb=document.createElement("input");cb.type="checkbox";cb.checked=done.has(t.id);
+      cb.onchange=()=>{cb.checked?done.add(t.id):done.delete(t.id);save();render()};
+      const tg=document.createElement("span");tg.className="tier";tg.style.setProperty("--c","var("+TIERS[t.tier][2]+")");tg.textContent=pts(t)+" pt";tg.title=TIERS[t.tier][0];
+      const tx=document.createElement("span");
+      const nm=document.createElement("div");nm.className="nm";nm.textContent=t.name;
+      const ds=document.createElement("div");ds.className="ds";ds.textContent=t.task;
+      tx.className="txt";tx.append(nm,ds);
+      const tn=document.createElement("span");tn.className="tiername";tn.style.setProperty("--c","var("+TIERS[t.tier][2]+")");tn.textContent=TIERS[t.tier][0];
+      const pc=document.createElement("span");pc.className="pct";pc.textContent="Comp% "+fmtPct(t.id);pc.title="Share of players who have completed this task (OSRS Wiki)";
+      lab.append(cb,tg,tx,tn,pc);
+      lab.title="Ctrl+click (Cmd+click on Mac) to open the wiki page";
+      lab.onclick=e=>{if(e.ctrlKey||e.metaKey){e.preventDefault();window.open("https://oldschool.runescape.wiki/w/"+encodeURIComponent(t.name.trim().replace(/ /g,"_")),"_blank","noopener")}};li.appendChild(lab);ul.appendChild(li);
+    });
+    det.appendChild(ul);L.appendChild(det);
+  });
+  updToggle();
+}
+
+// ---- RuneProfile sync (read-only: pulls your in-game completions) ----
+function extract(j){
+  const out=[];
+  (function walk(o){
+    if(Array.isArray(o)){o.forEach(walk);return}
+    if(o&&typeof o==="object"){
+      const id=o.index??o.id??o.taskId;
+      const flag=("completedAt" in o)?!!o.completedAt:("completed" in o)?!!o.completed:("isCompleted" in o)?!!o.isCompleted:null;
+      if(typeof id==="number"&&flag!==null){out.push([id,flag]);return}
+      Object.values(o).forEach(walk);
+    }
+  })(j);
+  return out;
+}
+function applyRows(rows,src,replace){
+  const ids=rows.filter(r=>r[1]).map(r=>r[0]);
+  if(!ids.length)return msg(src+" reports 0 completed tasks, so nothing was changed. The profile may not have been updated from RuneLite yet.",1);
+  const before=done.size;if(replace)done=new Set(ids);else ids.forEach(i=>done.add(i));synced=new Set(ids);try{LS.setItem("ca-synced",JSON.stringify(ids))}catch(e){}save();render();
+  msg("Synced from "+src+": "+ids.length+" completed tasks.");
+}
+async function doSync(replace){
+  const n=$("rsn").value.trim();if(!n)return msg("Enter your RuneScape name first.",1);
+  const prevAcct=(LS.getItem("ca-acct")||LS.getItem("ca-rsn")||"").toLowerCase();
+  const changed=prevAcct&&prevAcct!==n.toLowerCase();
+  LS.setItem("ca-rsn",n);msg("Syncing from RuneProfile…");
+  if(changed){done=new Set();synced=new Set();try{LS.removeItem("ca-synced")}catch(e){}save();render()}
+  const base="https://api.runeprofile.com/v1/accounts/"+encodeURIComponent(n);
+  try{
+    let rows=[];
+    for(const u of [base+"/combat-achievements/tasks",base]){
+      try{const r=await fetch(u);if(!r.ok)continue;rows=extract(await r.json());if(rows.length)break}catch(e){}
+    }
+    if(!rows.length)throw new Error("no task data came back (is the profile public, and is this file opened directly in your browser?)");
+    try{LS.setItem("ca-acct",n)}catch(e){}
+    applyRows(rows,"RuneProfile",replace===true||changed);
+  }catch(e){msg("Sync failed: "+e.message+". Make sure the profile is public and this file is opened directly in your browser.",1)}
+}
+$("sync").onclick=()=>doSync(false);
+$("rsn").value=LS.getItem("ca-rsn")||"";
+$("rsn").oninput=()=>{try{LS.setItem("ca-rsn",$("rsn").value.trim())}catch(e){}};
+$("clearman").onclick=()=>{const n=manualCount();
+  if(!n)return msg("No manual selections to clear.");
+  done=new Set([...done].filter(i=>synced.has(i)));save();render();msg("Cleared "+n+" manual selections.")};
+$("reset").onclick=()=>{done=new Set();synced=new Set();try{LS.removeItem("ca-synced")}catch(e){}save();render();msg("Cleared all selections.")};
+$("markall").onclick=()=>{if(!visible.length)return msg("No visible tasks to mark.");visible.forEach(t=>done.add(t.id));save();render();msg("Marked "+visible.length+" visible tasks complete as manual selections.")};
+$("selall").onclick=()=>{if(tierOn.size===TIERS.length)tierOn.clear();else TIERS.forEach(t=>tierOn.add(t[0]));render()};
+$("rsn").onkeydown=e=>{if(e.key==="Enter")doSync()};
+$("toggleall").onclick=()=>{const any=shown.some(b=>openBosses.has(b));shown.forEach(b=>any?openBosses.delete(b):openBosses.add(b));render()};
+$("barwrap").onclick=openRewards;
+$("barwrap").onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openRewards()}};
+$("rclose").onclick=closeRewards;
+$("rtoggle").onclick=()=>{const ds=[...document.querySelectorAll("#rbody details")];const any=ds.some(d=>d.open);ds.forEach(d=>d.open=!any);updR()};
+$("rewards").onclick=e=>{if(e.target===$("rewards"))closeRewards()};
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("rewards").hidden)closeRewards()});
+$("q").oninput=render;$("show").onchange=render;$("sort").onchange=render;
+load().then(()=>{loadThresholds();loadPct();if(tasks.length&&$("rsn").value.trim())doSync(true)});
+</script>
+</body>
+</html>
