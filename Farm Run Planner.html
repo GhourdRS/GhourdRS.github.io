@@ -1421,8 +1421,9 @@ function layout(stops){
   if(buildBh() && stops.some(s=>s.p.type==="birdhouse")){
     const bhAt = stops.filter(s=>s.p.type==="birdhouse").map(label);
     if(lo.imcando){
-      const ih = {name:"Imcando hammer", icon:"Imcando_hammer", at:bhAt, atLabel:"Build bird houses at", info:["Works as a hammer while you wield it"]};
-      if(!equip.Weapon) equip.Weapon = ih; else add({...ih, qty:1, kind:"tool"});
+      const ih = {name:"Imcando hammer", icon:"Imcando_hammer", at:bhAt, atLabel:"Build bird houses at", info:["Works as a hammer while you wear it"]};
+      // off-hand first, so it doesn't fight the secateurs or Dramen staff for the weapon slot
+      if(!equip.Shield) equip.Shield = ih; else if(!equip.Weapon) equip.Weapon = ih; else add({...ih, qty:1, kind:"tool"});
     } else add({name:"Hammer", icon:"Hammer", qty:1, kind:"tool", at:bhAt, atLabel:"Build bird houses at"});
     add({name:"Chisel", icon:"Chisel", qty:1, kind:"tool", at:bhAt, atLabel:"Build bird houses at"});
   }
