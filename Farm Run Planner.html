@@ -82,7 +82,7 @@ button{font:inherit;cursor:pointer}
 .lopair{display:inline-flex;flex-wrap:nowrap;align-items:center;column-gap:18px}
 .lopair label{white-space:nowrap;flex:none}
 @media (max-width:640px){.lopair{flex-wrap:wrap}}
-#route li.stop[data-map],#route li.plot[data-map]{cursor:pointer}
+#route li.stop[data-map],#route li.plot[data-map],#route [data-map]{cursor:pointer}
 #route li.stop[data-map] :is(button,input,a,label){cursor:auto}
 .cpgroup .check.locked input{cursor:not-allowed}
 details.panel > summary{cursor:pointer;font-family:var(--display);font-size:15px;letter-spacing:.06em;color:var(--muted);font-weight:700;list-style:none;display:flex;justify-content:space-between}
@@ -1771,8 +1771,23 @@ const MAPXY = (()=>{
   return m;
 })();
 const MAP_TILE = (tx,ty) => `https://raw.githubusercontent.com/mejrs/layers_osrs/master/mapsquares/-1/2/0_${tx}_${ty}.png`;
-function mapTip(group, title){
-  const pts = group.map(s=>MAPXY[s.p.id]).filter(Boolean);
+function mapTip(group, title){ return mapAt(group.map(s=>MAPXY[s.p.id]).filter(Boolean), title); }
+/* Magic mushtrees on Fossil Island (RuneLite world map; House on the Hill approximate) */
+const MUSHTREE = {house:[3764,3879,"Magic mushtree (House on the Hill)"], meadow:[3674,3871,"Magic mushtree (Mushroom Meadow)"],
+  swamp:[3676,3755,"Magic mushtree (Sticky Swamp)"], valley:[3757,3756,"Magic mushtree (Verdant Valley)"]};
+// Which mushtree a direction tells you to use (the one you set off from)
+function mushFrom(text, spot){
+  if(!/mushtree/i.test(text)) return null;
+  if(spot==="bh-tar") return "meadow";
+  if(spot==="bh-valley") return "swamp";
+  if(/mushtree (?:in|from) Verdant Valley/i.test(text)) return "valley";
+  if(/small room at the end of the (?:main )?hall|House on the Hill/i.test(text)) return "house";
+  return null;
+}
+const mushTip = k => { const m = MUSHTREE[k]; return m ? mapAt([[m[0],m[1]]], m[2]) : ""; };
+const tipAttr = (html, url) => html ? ` data-tip="map" data-tiph="${esc(html).replace(/"/g,"&quot;")}"${url?` data-map="${url}"`:""}` : "";
+const mushUrl = k => { const m = MUSHTREE[k]; return m ? `https://maps.runescape.wiki/osrs/?m=0&z=2&p=0&x=${m[0]}&y=${m[1]}#2/0/0/${m[0]}/${m[1]}` : ""; };
+function mapAt(pts, title){
   if(!pts.length) return "";
   const W = 300, H = 200, [cx, cy] = pts[0], tx = Math.floor(cx/64), ty = Math.floor(cy/64);
   const pos = (x,y)=>[(x-(tx-1)*64)*4+2, ((ty+2)*64-1-y)*4+2];          // pixel inside the 3×3 tile block (north is up)
@@ -1787,7 +1802,16 @@ function mapTip(group, title){
     + `<div class="tsub" style="margin-top:3px">Click the step to open this spot on the OSRS Wiki map</div>`;
 }
 /* Full-size OSRS Wiki map centred on the step's first patch */
-const wikiMapUrl = group => { const pt = group.map(s=>MAPXY[s.p.id]).find(Boolean); return pt ? `https://maps.runescape.wiki/osrs/#3/0/0/${pt[0]}/${pt[1]}` : ""; };
+/* The wiki map splits some areas into their own maps (OSRS Wiki RuneScape:Map/mapIDs): Prifddinas is map 29.
+   Underwater and cave patches open the surface right above them instead. Zoom 2 = 400%, close but with the area around it. */
+const WIKIMAP = {a_prif1:[29], a_prif2:[29], fl_prif1:[29], cr_prif:[29],
+  sw_1:[0,3707,3838], sw_2:[0,3707,3838], co_1:[0,3125,2403], co_2:[0,3125,2403], hs_fg:[0,1240,3729]};
+const wikiMapUrl = group => {
+  const s0 = group.find(s=>MAPXY[s.p.id]); if(!s0) return "";
+  const [x0,y0] = MAPXY[s0.p.id], o = WIKIMAP[s0.p.id] || [0];
+  const m = o[0], x = o[1]||x0, y = o[2]||y0;
+  return `https://maps.runescape.wiki/osrs/?m=${m}&z=2&p=0&x=${x}&y=${y}#2/${m}/0/${x}/${y}`;   // both link styles the map understands
+};
 document.addEventListener("click", e=>{
   const li = e.target.closest("#route [data-map]"); if(!li) return;
   if(e.target.closest("button, input, a, label, select")) return;      // ticks, minimize and Remove keep working
@@ -1945,11 +1969,13 @@ function renderRoute(){
       const where = baseName(s0.p.name);
       const travel = s0.walk
         ? `<div class="how">Walk from the previous patch</div>`
-        : `<div class="how">${s0.best[1]}</div>${s0.alt?`<div class="alt">Backup: ${s0.alt[1]}</div>`:''}`;
+        : (()=>{ const mb = mushFrom(s0.best[1]), ma = s0.alt && mushFrom(s0.alt[1]);
+            return `<div class="how"${mb?tipAttr(mushTip(mb), mushUrl(mb)):""}>${s0.best[1]}</div>${s0.alt?`<div class="alt"${ma?tipAttr(mushTip(ma), mushUrl(ma)):""}>Backup: ${s0.alt[1]}</div>`:''}`; })();
       const types = [...new Set(group.map(s=>TYPES[s.p.type].label))].join(" · ");
       const rows = group.map((s,gi)=>{
         const moved = gi>0 && spotOf(s)!==spotOf(group[gi-1]);
-        const walk = moved ? `<li class="walkbreak">→ ${SPOT_WALK[spotOf(s)] || "Walk to the next patch"}</li>` : "";
+        const wtxt = SPOT_WALK[spotOf(s)] || "Walk to the next patch", wm = mushFrom(wtxt, spotOf(s));
+        const walk = moved ? `<li class="walkbreak"${wm?tipAttr(mushTip(wm), mushUrl(wm)):""}>→ ${wtxt}</li>` : "";
         const sub = s.p.name!==where && baseName(s.p.name)===where ? s.p.name.slice(where.length).replace(/^ \(|\)$/g,"") : (baseName(s.p.name)!==where ? s.p.name : "");
         const what = {herb:"Herb patch",allotment:"Allotment",flower:"Flower patch",birdhouse:"Bird house",tree:"Tree patch",fruit:"Fruit tree patch",hardwood:"Hardwood patch",calquat:"Calquat patch",celastrus:"Celastrus patch",redwood:"Redwood patch",
           bush:"Bush patch",hops:"Hops patch",grape:"Grape vine",cactus:"Cactus patch",mushroom:"Mushroom patch",belladonna:"Belladonna patch",seaweed:"Seaweed patch",spirittree:"Spirit tree patch",crystal:"Crystal tree patch",hespori:"Hespori patch",anima:"Anima patch",coral:"Coral nursery"}[s.p.type];
