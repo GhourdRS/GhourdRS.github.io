@@ -79,6 +79,9 @@ button{font:inherit;cursor:pointer}
 .check small{display:block;color:var(--muted);font-size:13px;line-height:1.3}
 .check.locked{opacity:.5}
 .cpgroup .check.locked{cursor:not-allowed}
+.lopair{display:inline-flex;flex-wrap:nowrap;align-items:center;column-gap:18px}
+.lopair label{white-space:nowrap;flex:none}
+@media (max-width:640px){.lopair{flex-wrap:wrap}}
 #route li.stop[data-map],#route li.plot[data-map]{cursor:pointer}
 #route li.stop[data-map] :is(button,input,a,label){cursor:auto}
 .cpgroup .check.locked input{cursor:not-allowed}
@@ -498,8 +501,10 @@ footer{margin-top:22px;color:var(--muted);font-size:13.5px;max-width:75ch}
           <label><input type="checkbox" id="lo_bucket"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Bottomless_compost_bucket" target="_blank" rel="noopener">Bottomless compost bucket</a></label>
           <label><input type="checkbox" id="lo_herbsack"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Herb_sack" target="_blank" rel="noopener">Herb sack</a></label>
           <label><input type="checkbox" id="lo_secateurs"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Magic_secateurs" target="_blank" rel="noopener">Magic secateurs</a></label>
-          <label><input type="checkbox" id="lo_imcando"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Imcando_hammer" target="_blank" rel="noopener">Imcando hammer</a> (instead of a hammer)</label>
-          <label><input type="checkbox" id="lo_buildBh"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Bird_house" target="_blank" rel="noopener">Build bird houses yourself</a> (logs, clockwork, hammer and chisel)</label>
+          <span class="lopair">
+            <label><input type="checkbox" id="lo_buildBh"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Bird_house" target="_blank" rel="noopener">Build bird houses yourself</a> (logs + clockwork)</label>
+            <label><input type="checkbox" id="lo_imcando"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Imcando_hammer" target="_blank" rel="noopener">Imcando hammer</a></label>
+          </span>
           <label><input type="checkbox" id="lo_tablets"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Teleport_tablet" target="_blank" rel="noopener">Use tablets instead of runes</a></label>
           <label><input type="checkbox" id="lo_barb"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Barbarian_Training" target="_blank" rel="noopener">Barbarian farming</a> (no seed dibber)</label>
           <fieldset>
