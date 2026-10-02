@@ -1778,7 +1778,6 @@ const MUSHTREE = {house:[3764,3879,"Magic mushtree (House on the Hill)"], meadow
 // Which mushtree a direction tells you to use (the one you set off from)
 function mushFrom(text, spot){
   if(!/mushtree/i.test(text)) return null;
-  if(spot==="bh-tar") return "meadow";
   if(spot==="bh-valley") return "swamp";
   if(/mushtree (?:in|from) Verdant Valley/i.test(text)) return "valley";
   if(/small room at the end of the (?:main )?hall|House on the Hill/i.test(text)) return "house";
@@ -1832,7 +1831,7 @@ const SPOT_WALK = {
   "fg-west": "Run west through the centre of the guild into the west wing",
   "fg-north": "Run back to the centre of the guild, then north into the advanced wing",
   "bh-forest": "Go back along the path, north over the bridge and up the stairs into the main hall of the House on the Hill. The magic mushtree is in the small room at the end of the main hall → Mushroom Meadow; the bird house space is just north of it, west of the Ancient Shroom",
-  "bh-tar": "Use the magic mushtree → Sticky Swamp, then walk to the Tar Swamp entrance; the space is beside it",
+  "bh-tar": "Run south from the first bird house, down past the Mushroom Meadow, to the Tar Swamp entrance; the space is beside it (quicker than the mushtree)",
   "bh-valley": "Use the magic mushtree → Verdant Valley; both spaces are south of the Museum Camp",
   "kast-south": "Run east to the patches just south of where the Pendant of Ates lands",
   "fossil-sea": "Take the rowboat at the north-east of the Mushroom Forest down to the underwater patches (diving gear needed)",
