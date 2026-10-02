@@ -79,6 +79,8 @@ button{font:inherit;cursor:pointer}
 .check small{display:block;color:var(--muted);font-size:13px;line-height:1.3}
 .check.locked{opacity:.5}
 .cpgroup .check.locked{cursor:not-allowed}
+#route li.stop[data-map],#route li.plot[data-map]{cursor:pointer}
+#route li.stop[data-map] :is(button,input,a,label){cursor:auto}
 .cpgroup .check.locked input{cursor:not-allowed}
 details.panel > summary{cursor:pointer;font-family:var(--display);font-size:15px;letter-spacing:.06em;color:var(--muted);font-weight:700;list-style:none;display:flex;justify-content:space-between}
 details.panel > summary::after{content:"+";font-family:var(--mono)}
@@ -1730,8 +1732,16 @@ function mapTip(group, title){
     .map(([x,y])=>{ const [mx,my] = pos(x,y); return `<span style="position:absolute;left:${mx+ox-7}px;top:${my+oy-7}px;width:14px;height:14px;border-radius:50%;background:#ff3b2f;border:2px solid #fff;box-shadow:0 0 0 2px #000,0 0 10px #ff3b2f"></span>`; }).join("");
   return `<div class="tn">${esc(title)}</div><div style="position:relative;width:${W}px;height:${H}px;overflow:hidden;margin-top:4px;background:#0b0b0b;border:1px solid #000">`
     + `<div style="position:absolute;left:${ox}px;top:${oy}px;width:768px;height:768px">${tiles}</div>${marks}</div>`
-    + `<div class="tsub" style="margin-top:3px">Map: OSRS world map (mejrs / OSRS Wiki)</div>`;
+    + `<div class="tsub" style="margin-top:3px">Click the step to open this spot on the OSRS Wiki map</div>`;
 }
+/* Full-size OSRS Wiki map centred on the step's first patch */
+const wikiMapUrl = group => { const pt = group.map(s=>MAPXY[s.p.id]).find(Boolean); return pt ? `https://maps.runescape.wiki/osrs/#3/0/0/${pt[0]}/${pt[1]}` : ""; };
+document.addEventListener("click", e=>{
+  const li = e.target.closest("#route [data-map]"); if(!li) return;
+  if(e.target.closest("button, input, a, label, select")) return;      // ticks, minimize and Remove keep working
+  if(tip.hidden) return;                                                // only while the map preview is showing
+  window.open(li.dataset.map, "_blank", "noopener");
+});
 /* Patches at the same spot (same cluster, one after another) form a single step */
 function numberSteps(stops){
   let n = 0;
@@ -1894,7 +1904,9 @@ function renderRoute(){
         const guard = s.p.type==="flower" && FLOWER[s.crop[0]][3] ? `Protects ${FLOWER[s.crop[0]][3]}` : "";
         const care = [pays(s)?`Pay the gardener ${s.crop[2]}`:"", s.guardedBy && S.lo.protect==="pay" ? `No payment needed, the ${s.guardedBy.toLowerCase()} protects it` : "", composted(s)?`Apply ${cName(compostFor(s)).toLowerCase()}`:"", guard,
           s.p.note||""].filter(Boolean).join(". ");
-        return walk + `<li class="plot${S.done.includes(s.p.id)?' done':''}">
+        // each patch or bird house space gets its own map preview
+        const pName = `${where} · ${sub ? sub[0].toUpperCase()+sub.slice(1) : what}`, pm = mapTip([s], pName);
+        return walk + `<li class="plot${S.done.includes(s.p.id)?' done':''}"${pm?` data-tip="map" data-tiph="${esc(pm).replace(/"/g,"&quot;")}" data-map="${wikiMapUrl([s])}"`:""}>
           <span class="plotname">${sub ? sub[0].toUpperCase()+sub.slice(1) : what}</span>
           <span class="crop">${s.p.type==="birdhouse" ? `Set up a <strong>${s.crop[0].toLowerCase()}</strong> with ${BIRD_SEEDS} ${BIRD_SEED.toLowerCase()}s <span class="tag">Hunter ${s.crop[1]}</span>`
             : `Plant ${seedsFor(s.p.type,s.crop[0])>1?seedsFor(s.p.type,s.crop[0])+" × ":""}<strong>${s.crop[0]}</strong> <span class="tag">lvl ${s.crop[1]}</span>`}</span>
@@ -1905,7 +1917,7 @@ function renderRoute(){
       const skey = ids.join(","), override = (S.stepFold||{})[skey];
       const folded = override===undefined ? done : override;
       const mt = mapTip(group, where);
-      return `<li class="stop${done?' done':''}${folded?' folded':''}"${mt?` data-tip="map" data-tiph="${esc(mt).replace(/"/g,"&quot;")}"`:""}>
+      return `<li class="stop${done?' done':''}${folded?' folded':''}"${mt?` data-tip="map" data-tiph="${esc(mt).replace(/"/g,"&quot;")}" data-map="${wikiMapUrl(group)}"`:""}>
         <div class="num">${s0.n}</div>
         <div class="body">
           <div class="stephead"><span class="where">${where}</span><span class="type">${types}</span></div>
