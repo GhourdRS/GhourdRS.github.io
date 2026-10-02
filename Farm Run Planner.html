@@ -78,6 +78,8 @@ button{font:inherit;cursor:pointer}
 .check input{margin-top:4px;accent-color:var(--accent)}
 .check small{display:block;color:var(--muted);font-size:13px;line-height:1.3}
 .check.locked{opacity:.5}
+.cpgroup .check.locked{cursor:not-allowed}
+.cpgroup .check.locked input{cursor:not-allowed}
 details.panel > summary{cursor:pointer;font-family:var(--display);font-size:15px;letter-spacing:.06em;color:var(--muted);font-weight:700;list-style:none;display:flex;justify-content:space-between}
 details.panel > summary::after{content:"+";font-family:var(--mono)}
 details.panel[open] > summary::after{content:"–"}
@@ -1154,7 +1156,7 @@ function renderControls(){
   });
   const byLabel = (a,b)=>TYPES[a].label.localeCompare(TYPES[b].label);
   // Patch types with a single crop have nothing to choose, so they're left out
-  const choice = k => CROPS[k].length > 1;
+  const choice = k => CROPS[k].length > 1 && !PATCHES.filter(p=>p.type===k).every(p=>omitIds().includes(p.id));   // hidden when every patch of the type is omitted
   const spOv = SPECIAL.filter(choice).sort(byLabel);
   const ovKeys = Object.keys(TYPES).filter(k=>!TYPES[k].group && choice(k)).sort(byLabel).concat(spOv.length ? ["—special", ...spOv] : []);
   $("overrides").innerHTML = ovKeys.map(k=>{
@@ -2163,7 +2165,16 @@ const customIds = ()=> (S.custom && S.custom.ids) || [];
    Ctrl/⌘ + click opens the location on the OSRS Wiki */
 const LOC_PAGE = {"South of Falador":"Falador","North of East Ardougne":"East Ardougne","South of Ardougne":"East Ardougne","Morytania":"Port Phasmatys",
   "Fossil Island underwater":"Fossil Island","Great Conch coral nursery":"Coral nursery","Hosidius vinery":"Vinery","Trollheim":"Troll Stronghold","Varrock Palace":"Varrock Palace"};
-function locLink(p, ids){
+/* Why you can't use a patch yet (same checks as the route); empty when it's open to you */
+function lockWhy(p){
+  if(!S.player) return [];
+  const why = [];
+  if(!CROPS[p.type].some(c=>c[1]<=levelFor(p.type))) why.push(`${CROPS[p.type][0][1]} ${TYPES[p.type].skill||"Farming"}`);
+  if(p.access && S.lvl<p.access) why.push(`${p.access} Farming for guild access`);
+  (p.req||[]).forEach(r=>{ if(!has(r)) why.push(REQ_LABEL[r]); });
+  return why;
+}
+function locLink(p, ids, locked){
   const where = baseName(p.name), plain = where.replace(/ \(.*\)$/,"");
   const page = LOC_PAGE[plain] || LOC_PAGE[where] || plain;
   const url = "https://oldschool.runescape.wiki/w/Special:Search?go=Go&search=" + encodeURIComponent(page);
@@ -2173,7 +2184,9 @@ function locLink(p, ids){
   const line = last.length ? `${bird?"Last set up":"Last planted"}: <b>${esc(last.join(", "))}</b><div class="tsub">From your last run</div>`
     : cur ? `${bird?"Will set up":"Will plant"}: <b>${esc(cur)}</b><div class="tsub">No run tracked yet, so this is your current crop choice</div>`
     : `<div class="tsub">Your level is too low to ${bird?"build":"plant"} here yet</div>`;
-  const html = `<div class="tn">${esc(where)}</div><div class="tsub">${esc(TYPES[p.type].label)}</div><div style="margin-top:4px">${line}</div><div class="tsub" style="margin-top:4px">Ctrl + click for the wiki page</div>`;
+  const html = `<div class="tn">${esc(where)}</div><div class="tsub">${esc(TYPES[p.type].label)}</div>`
+    + (locked && locked.length ? `<div style="margin-top:4px;color:#ff8a6b"><b>Locked</b>: needs ${esc(locked.join(", "))}</div>` : "")
+    + `<div style="margin-top:4px">${line}</div><div class="tsub" style="margin-top:4px">Ctrl + click for the wiki page</div>`;
   return `<a class="wiki cploc" href="${url}" target="_blank" rel="noopener" data-tip="loc" data-tiph="${esc(html).replace(/"/g,"&quot;")}">${esc(where)}</a>`;
 }
 /* Patches listed as one entry in the menus: both allotments at a farm, the 12 vines, the paired seaweed and coral patches */
@@ -2227,11 +2240,11 @@ const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())
 const hm = d => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 function manualCard(){
   if(!TM.open) return `<div class="cpgroup tmcard"><button type="button" class="chipbtn tmopen" data-tm="open">+ Set when a patch is ready</button></div>`;
-  const types = [...new Set(PATCHES.map(p=>catOf(p.type)))].sort((a,b)=>catLabel(a).localeCompare(catLabel(b)));
+  const types = [...new Set(PATCHES.filter(p=>!omitIds().includes(p.id)).map(p=>catOf(p.type)))].sort((a,b)=>catLabel(a).localeCompare(catLabel(b)));
   let form = "";
   if(TM.type){
     const t = TM.type, locs = [];
-    PATCHES.filter(p=>catOf(p.type)===t).sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{
+    PATCHES.filter(p=>catOf(p.type)===t && !omitIds().includes(p.id)).sort((a,b)=>a.name.localeCompare(b.name)).forEach(p=>{
       const key = mergeKey(p), hit = locs.find(l=>l.key===key);
       const nm = (TYPES[p.type].merge || t==="special" ? baseName(p.name) : p.name.replace(/ \((flower patch|allotment|[^)]* bird house)\)$/, m=>m.includes("bird house")?m.replace(" bird house",""):""))
         + (t==="special" ? ` (${TYPES[p.type].label.toLowerCase()})` : "");
@@ -2337,6 +2350,7 @@ function renderPicker(k){
     const where = baseName(p.name);
     const text = `${p.name} ${where} ${label(p)} ${p.type} ${catLabel(catOf(p.type))}`.toLowerCase();
     if(q && !q.split(/\s+/).every(w=>text.includes(w))) return;
+    if(k==="timers" && omitIds().includes(p.id)) return;     // omitted patches leave Patch timers until un-omitted
     const key = mergeKey(p);
     const g = (groups[catOf(p.type)] ||= []);
     const hit = g.find(e=>e.key===key);
@@ -2345,14 +2359,19 @@ function renderPicker(k){
   const types = Object.keys(groups).sort((a,b)=>abc(catLabel(a),catLabel(b)));
   if(groups.special) groups.special.sort((a,b)=>abc(TYPES[a.p.type].label+" "+a.p.name, TYPES[b.p.type].label+" "+b.p.name));
   const cfg = CP[k], on = cfg.isOn || (id=>st.ids.includes(id));
-  const secIds = t=>groups[t].flatMap(e=>e.ids);
+  // Patch timers and Omit locations: patches you can't use yet are shown greyed out and can't be ticked
+  const lockable = k==="timers" || k==="omit";
+  const lockOf = e => { if(!lockable) return null; const w = e.ids.map(id=>lockWhy(patchById(id))); return w.every(x=>x.length) ? w[0] : null; };
+  Object.values(groups).flat().forEach(e=>{ e.lock = lockOf(e); });
+  const open_ = t => groups[t].filter(e=>!e.lock);
+  const secIds = t=>open_(t).flatMap(e=>e.ids);
   $(k+"List").innerHTML = types.length ? types.map(t=>{
     const folded = !!st.fold[t], any = secIds(t).some(on);
-    return `<div class="cpgroup${folded?" folded":""}"><h3><button type="button" class="steptog" data-cpfold="${t}" aria-expanded="${!folded}" aria-label="${folded?"Expand":"Minimize"} ${catLabel(t)}">${folded?"+":"–"}</button><span class="cptitle">${catLabel(t)} <span class="count">${groups[t].filter(e=>e.ids.every(on)).length}/${groups[t].length}</span>${k==="timers"&&growText(t)?(st=>`<span class="cpgrow${st.ready?" ready":""}" title="${st.tip}">${st.text}</span>`)(sectionTime(t)):""}</span><button type="button" class="chipbtn" data-cpsec="${secIds(t).join(",")}">${any?"Clear all":"Check all"}</button></h3>${groups[t].map(({p,ids})=>{
+    return `<div class="cpgroup${folded?" folded":""}"><h3><button type="button" class="steptog" data-cpfold="${t}" aria-expanded="${!folded}" aria-label="${folded?"Expand":"Minimize"} ${catLabel(t)}">${folded?"+":"–"}</button><span class="cptitle">${catLabel(t)} <span class="count">${open_(t).filter(e=>e.ids.every(on)).length}/${open_(t).length}</span>${k==="timers"&&growText(t)?(st=>`<span class="cpgrow${st.ready?" ready":""}" title="${st.tip}">${st.text}</span>`)(sectionTime(t)):""}</span><button type="button" class="chipbtn" data-cpsec="${secIds(t).join(",")}">${any?"Clear all":"Check all"}</button></h3>${groups[t].map(({p,ids,lock})=>{
       const where = baseName(p.name);
       let sub = ids.length>1 ? "" : p.name!==where ? p.name.slice(where.length).replace(/^ \(|\)$/g,"").replace(/ bird house$| allotment$| flower patch$/,"") : "";
       if(t==="special") sub = TYPES[p.type].label + (sub && sub!=="crystal tree" ? ", "+sub : "");
-      return `<label class="check"><input type="checkbox" data-cpid="${ids.join(",")}" ${ids.every(on)?"checked":""}><span>${locLink(p, ids)}${sub && sub!=="allotment" && sub!=="flower patch"?`<small>${esc(sub)}</small>`:""}${cfg.status?cfg.status(ids):""}</span></label>`;
+      return `<label class="check${lock?" locked":""}"><input type="checkbox" data-cpid="${ids.join(",")}" ${ids.every(on)?"checked":""}${lock?" disabled":""}><span>${locLink(p, ids, lock)}${sub && sub!=="allotment" && sub!=="flower patch"?`<small>${esc(sub)}</small>`:""}${cfg.status?cfg.status(ids):""}</span></label>`;
     }).join("")}</div>`; }).join("") + (k==="timers" ? manualCard() : "") : `<p class="note">No patches match "${esc(q)}".</p>`;
   // Same toggles as Your route: Clear all whenever anything shown is ticked, Collapse all whenever a section is open
   $(k+"CheckAll").textContent = types.flatMap(secIds).some(on) ? "Clear all" : "Check all";
@@ -2403,7 +2422,7 @@ document.addEventListener("click", e=>{
     renderPicker(k); save(); return;
   }
   if(b.dataset.cp==="only"){ st.only = !st.only; S.tab = 0; renderAll(); return; }
-  if(b.dataset.cp==="all") flip([...pn.querySelectorAll("[data-cpid]")].flatMap(x=>x.dataset.cpid.split(",")));
+  if(b.dataset.cp==="all") flip([...pn.querySelectorAll("[data-cpid]:not(:disabled)")].flatMap(x=>x.dataset.cpid.split(",")));
 });
 
 function renderAll(){ renderCustom(); renderControls(); renderRoute(); save(); }
@@ -2604,7 +2623,7 @@ syncNotifyBtn();
 const pageOpened = Date.now();
 function checkNotify(){
   const t = tm(); t.notified ||= {};
-  const fresh = PATCHES.filter(p=>{ const r = readyAt(p.id); return r!=null && r<=Date.now() && r>=pageOpened-60000 && t.notified[p.id]!==r; });
+  const fresh = PATCHES.filter(p=>{ if(omitIds().includes(p.id)) return false; const r = readyAt(p.id); return r!=null && r<=Date.now() && r>=pageOpened-60000 && t.notified[p.id]!==r; });
   fresh.forEach(p=>{ t.notified[p.id] = readyAt(p.id); });
   if(!fresh.length) return;
   save();
