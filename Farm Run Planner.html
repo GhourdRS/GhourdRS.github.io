@@ -498,6 +498,8 @@ footer{margin-top:22px;color:var(--muted);font-size:13.5px;max-width:75ch}
           <label><input type="checkbox" id="lo_bucket"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Bottomless_compost_bucket" target="_blank" rel="noopener">Bottomless compost bucket</a></label>
           <label><input type="checkbox" id="lo_herbsack"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Herb_sack" target="_blank" rel="noopener">Herb sack</a></label>
           <label><input type="checkbox" id="lo_secateurs"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Magic_secateurs" target="_blank" rel="noopener">Magic secateurs</a></label>
+          <label><input type="checkbox" id="lo_imcando"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Imcando_hammer" target="_blank" rel="noopener">Imcando hammer</a> (instead of a hammer)</label>
+          <label><input type="checkbox" id="lo_buildBh"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Bird_house" target="_blank" rel="noopener">Build bird houses yourself</a> (logs, clockwork, hammer and chisel)</label>
           <label><input type="checkbox" id="lo_tablets"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Teleport_tablet" target="_blank" rel="noopener">Use tablets instead of runes</a></label>
           <label><input type="checkbox" id="lo_barb"> <a class="wiki" href="https://oldschool.runescape.wiki/w/Barbarian_Training" target="_blank" rel="noopener">Barbarian farming</a> (no seed dibber)</label>
           <fieldset>
@@ -814,6 +816,10 @@ const ALLOT_YIELD = 37.5;
 const BIRD = {"Bird house":112,"Oak bird house":168,"Willow bird house":224,"Teak bird house":280,"Maple bird house":369,
   "Mahogany bird house":480,"Yew bird house":612,"Magic bird house":969,"Redwood bird house":1200};
 const BIRD_SEED = "Barley seed", BIRD_SEEDS = 10;
+/* Building your own (OSRS Wiki Bird house): logs, Crafting level, Crafting XP; plus 1 clockwork, a hammer and a chisel */
+const BH_BUILD = {"Bird house":["Logs",5,15],"Oak bird house":["Oak logs",15,20],"Willow bird house":["Willow logs",25,25],"Teak bird house":["Teak logs",35,30],
+  "Maple bird house":["Maple logs",45,35],"Mahogany bird house":["Mahogany logs",50,40],"Yew bird house":["Yew logs",60,45],"Magic bird house":["Magic logs",75,50],"Redwood bird house":["Redwood logs",90,55]};
+const buildBh = ()=> !!S.lo.buildBh;
 const isTreeType = t => ["tree","fruit","hardwood","calquat","celastrus","redwood"].includes(t);
 const levelFor = type => TYPES[type].skill==="Hunter" ? (S.hunter||1) : S.lvl;
 /* Flowers (OSRS Wiki Flower patch): total XP per patch, items harvested, GE item name, and which allotment crops they protect */
@@ -1403,6 +1409,15 @@ function layout(stops){
 
   if(lo.herbsack && stops.some(s=>s.p.type==="herb")) add({name:"Herb sack", icon:"Herb_sack", qty:1, kind:"tool", info:["Open it so grimy herbs go straight in (holds 30 of each herb)"]});
   if(stops.some(s=>s.p.type!=="birdhouse")) add({name:"Spade", icon:ICON.Spade, qty:1, kind:"tool", info:["Clears dead plants and tree stumps"]});
+  // Building bird houses on the spot: hammer (or an equipped Imcando hammer) and chisel
+  if(buildBh() && stops.some(s=>s.p.type==="birdhouse")){
+    const bhAt = stops.filter(s=>s.p.type==="birdhouse").map(label);
+    if(lo.imcando){
+      const ih = {name:"Imcando hammer", icon:"Imcando_hammer", at:bhAt, atLabel:"Build bird houses at", info:["Works as a hammer while you wield it"]};
+      if(!equip.Weapon) equip.Weapon = ih; else add({...ih, qty:1, kind:"tool"});
+    } else add({name:"Hammer", icon:"Hammer", qty:1, kind:"tool", at:bhAt, atLabel:"Build bird houses at"});
+    add({name:"Chisel", icon:"Chisel", qty:1, kind:"tool", at:bhAt, atLabel:"Build bird houses at"});
+  }
   if(!lo.barb && stops.some(s=>["herb","allotment","flower"].includes(s.p.type) || TYPES[s.p.type].dibber)) add({name:"Seed dibber", icon:ICON["Seed dibber"], qty:1, kind:"tool", info:["Needed to plant seeds"]});
   if(stops.some(s=>s.p.type==="grape")) add({name:"Gardening trowel", icon:"Gardening_trowel", qty:1, kind:"tool", info:["Treats the vines with saltpetre"]});
   const trees = stops.filter(s=>isTreeType(s.p.type)).length;
@@ -1424,6 +1439,11 @@ function layout(stops){
   stops.forEach(s=>{
     const u = TYPES[s.p.type].unit, file = s.crop[0].replace(/ /g,"_");
     if(s.p.type==="birdhouse"){
+      if(buildBh()){
+        const [logs, clvl, cxp] = BH_BUILD[s.crop[0]];
+        add({name:logs, icon:logs.replace(/ /g,"_"), qty:1, kind:"crop", at:[label(s)], atLabel:"Build a bird house at", info:[`For a ${s.crop[0].toLowerCase()} (Crafting ${clvl}, ${cxp} Crafting XP)`]});
+        add({name:"Clockwork", icon:"Clockwork", qty:1, kind:"crop", at:[label(s)], atLabel:"Build a bird house at"});
+      } else
       add({name:s.crop[0], icon:s.crop[0].replace(/ /g,"_"), qty:1, kind:"crop", at:[label(s)], atLabel:"Set up at", info:[`${BIRD[s.crop[0]].toLocaleString()} Hunter XP when emptied`]});
       add({name:BIRD_SEED, icon:BIRD_SEED.replace(/ /g,"_")+"_5", qty:BIRD_SEEDS, stack:true, kind:"crop", at:[label(s)], atLabel:"Bird house bait at"});
       return;
@@ -1554,6 +1574,10 @@ function renderLoadout(trips){
   $("lo_bucket").checked = S.lo.bucket; $("lo_secateurs").checked = S.lo.secateurs;
   $("lo_tablets").checked = S.lo.tablets; $("lo_barb").checked = S.lo.barb;
   $("lo_tablets").closest("label").hidden = !!S.noTabs;
+  // Building bird houses only matters on a bird house run; the Imcando hammer only when building
+  const anyBh = trips.flat().some(s=>s.p.type==="birdhouse");
+  $("lo_buildBh").checked = !!S.lo.buildBh; $("lo_buildBh").closest("label").hidden = !anyBh;
+  $("lo_imcando").checked = !!S.lo.imcando; $("lo_imcando").closest("label").hidden = !(anyBh && S.lo.buildBh);
   Object.keys(OUTFIT).forEach(k=>$("fo_"+k).checked = !!S.lo.outfit[k]);
   document.querySelector(`input[name=protect][value="${S.lo.protect}"]`).checked = true;
   document.querySelector(`input[name=treeCompost][value="${S.lo.treeCompost}"]`).checked = true;
@@ -1908,7 +1932,7 @@ function renderRoute(){
         const pName = `${where} · ${sub ? sub[0].toUpperCase()+sub.slice(1) : what}`, pm = mapTip([s], pName);
         return walk + `<li class="plot${S.done.includes(s.p.id)?' done':''}"${pm?` data-tip="map" data-tiph="${esc(pm).replace(/"/g,"&quot;")}" data-map="${wikiMapUrl([s])}"`:""}>
           <span class="plotname">${sub ? sub[0].toUpperCase()+sub.slice(1) : what}</span>
-          <span class="crop">${s.p.type==="birdhouse" ? `Set up a <strong>${s.crop[0].toLowerCase()}</strong> with ${BIRD_SEEDS} ${BIRD_SEED.toLowerCase()}s <span class="tag">Hunter ${s.crop[1]}</span>`
+          <span class="crop">${s.p.type==="birdhouse" ? `${buildBh()?"Build and set up a":"Set up a"} <strong>${s.crop[0].toLowerCase()}</strong>${buildBh()?` (${BH_BUILD[s.crop[0]][0].toLowerCase()} + clockwork)`:""} with ${BIRD_SEEDS} ${BIRD_SEED.toLowerCase()}s <span class="tag">Hunter ${s.crop[1]}</span>`
             : `Plant ${seedsFor(s.p.type,s.crop[0])>1?seedsFor(s.p.type,s.crop[0])+" × ":""}<strong>${s.crop[0]}</strong> <span class="tag">lvl ${s.crop[1]}</span>`}</span>
           ${care?`<span class="pay">${care.replace(/\.$/,"")}.</span>`:""}
         </li>`;
@@ -1995,7 +2019,8 @@ function priceNames(){
   CROPS.herb.forEach(h=>set.add(grimyName(h[0])));
   CROPS.allotment.forEach(c=>set.add(produceName(c[0])));
   Object.values(FLOWER).forEach(f=>set.add(f[2]));
-  set.add(BIRD_SEED.toLowerCase());
+  set.add(BIRD_SEED.toLowerCase()); set.add("clockwork");
+  Object.values(BH_BUILD).forEach(b=>set.add(b[0].toLowerCase()));
   PAY_ITEM.forEach(p=>set.add(payName(p[1])));
   return set;
 }
@@ -2005,7 +2030,7 @@ async function loadPrices(force){
   if(!force && S.prices && Date.now()-S.prices.at < 10*60*1000) return;
   priceState = {busy:true, error:""};
   try{
-    if(!S.priceIds || S.priceVer!==7){ S.priceVer = 7;
+    if(!S.priceIds || S.priceVer!==8){ S.priceVer = 8;
       const names = priceNames(), ids = {};
       const map = await fetch(PRICE_API+"mapping").then(r=>{ if(!r.ok) throw 0; return r.json(); });
       map.forEach(it=>{ const n = String(it.name).toLowerCase(); if(names.has(n)) ids[n] = it.id; });
@@ -2050,7 +2075,10 @@ function estimate(stops){
     ck = crop(s);
     if(s.p.type==="birdhouse"){
       const hx = BIRD[c[0]]; r.hunterXp += hx; const hr = r.hunterBy[c[0]] ||= {n:0, xp:0}; hr.n++; hr.xp += hx;
-      charge(c[0].toLowerCase(), 1, "Bird houses"); charge(BIRD_SEED.toLowerCase(), BIRD_SEEDS, "Bird houses");
+      if(buildBh()){ const [logs,,cxp] = BH_BUILD[c[0]]; charge(logs.toLowerCase(), 1, "Bird houses"); charge("clockwork", 1, "Bird houses");
+        r.craftXp = (r.craftXp||0) + cxp; }
+      else charge(c[0].toLowerCase(), 1, "Bird houses");
+      charge(BIRD_SEED.toLowerCase(), BIRD_SEEDS, "Bird houses");
       return;
     }
     if(s.p.type==="herb"){
@@ -2127,7 +2155,7 @@ function cropEcon(type, c){
   }
   else if(type==="birdhouse"){
     xp = BIRD[c[0]];
-    const h = buy(c[0].toLowerCase()), sd = buy(BIRD_SEED.toLowerCase());
+    const h = buildBh() ? (buy(BH_BUILD[c[0]][0].toLowerCase())==null || buy("clockwork")==null ? null : buy(BH_BUILD[c[0]][0].toLowerCase()) + buy("clockwork")) : buy(c[0].toLowerCase()), sd = buy(BIRD_SEED.toLowerCase());
     return {xp, gpxp: h==null || sd==null ? null : -(h + sd*BIRD_SEEDS)/xp};
   }
   else xp = ECON[c[0]][0];
@@ -2193,6 +2221,7 @@ function estimateHtml(stops, title){
     <ul class="inv">
       ${r.baseXp ? `<li class="tipline" data-tip="${xpTip}"><span>Farming XP</span><b>~${Math.round(r.xp).toLocaleString()}</b></li>` : ""}
       ${r.hunterXp ? `<li class="tipline" data-tip="${addTip(`<div class="tn">Hunter XP by source</div>` + Object.entries(r.hunterBy).map(([k,v])=>trow(`${k} ×${v.n}`, Math.round(v.xp).toLocaleString())).join("") + `<div class="tsub" style="margin-top:4px">Gained when you empty the bird houses on your next run</div>`)}"><span>Hunter XP</span><b>~${Math.round(r.hunterXp).toLocaleString()}</b></li>` : ""}
+      ${r.craftXp ? `<li><span>Crafting XP (building bird houses)</span><b>~${Math.round(r.craftXp).toLocaleString()}</b></li>` : ""}
       ${S.prices ? `
       <li class="tipline" data-tip="${valTip}"><span>Produce sold (after 2% GE tax)</span><b>${gp(r.value)}</b></li>
       <li class="tipline" data-tip="${costTip}"><span>Seeds, payments, compost and fees</span><b>${gp(-r.cost)}</b></li>
