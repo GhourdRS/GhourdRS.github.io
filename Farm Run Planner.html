@@ -2072,7 +2072,7 @@ async function loadPrices(force){
   }catch(e){
     priceState = {busy:false, error:"Couldn't load live GE prices. Check your connection and try again."};
   }
-  save(); renderRoute();
+  save(); renderAll();   // prices also steer Most economical crop picks and trip trimming
 }
 /* Expected herbs per patch: 8.8 with ultracompost + magic secateurs, scaled by harvest lives (3 + compost bonus) */
 const herbYield = ()=> HERB_YIELD * ((3 + COMPOST[S.lo.herbCompost].lives)/6) * (S.lo.secateurs ? 1 : 1/1.1);
@@ -2624,8 +2624,8 @@ document.addEventListener("click", e=>{
     S.stepFold = {};
     renderRoute(); save();
   }
-  if(b.hasAttribute("data-reset-run")){ S.done=[]; tm().prev={}; S.removed=[]; S.stepFold={}; S.tab=0; renderAll(); }
-  if(b.hasAttribute("data-reset-keep")){ S.done=[]; tm().prev={}; S.stepFold={}; S.tab=0; renderRoute(); save(); }
+  if(b.hasAttribute("data-reset-run")){ S.done=[]; tm().prev={}; loadPrices(true); S.removed=[]; S.stepFold={}; S.tab=0; renderAll(); }
+  if(b.hasAttribute("data-reset-keep")){ S.done=[]; tm().prev={}; loadPrices(true); S.stepFold={}; S.tab=0; renderRoute(); save(); }
   if(b.dataset.fold){
     const k = b.dataset.fold, li = b.closest(".stop");
     S.stepFold = S.stepFold || {};
@@ -2752,11 +2752,12 @@ setInterval(()=>{
   const sig = readySig();
   const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest("#tmForm");
   if(typing){ lastReady = sig; return; }
-  if(S.timers && S.timers.only && sig!==lastReady) renderAll(); else renderPicker("timers");
+  // a patch just became ready and joins the route: refresh prices first so its crop and profit use the latest GE prices
+  if(S.timers && S.timers.only && sig!==lastReady){ renderAll(); loadPrices(true); } else renderPicker("timers");
   lastReady = sig;
 }, 30000);
 if(S.player && (S.magic==null || S.agility==null || S.sailing==null || S.allQuests==null || S.caTier==null || S.hunter==null)) lookup(S.player.name);
-loadPrices(false);
+loadPrices(true);   // fresh GE prices every time the page opens
 </script>
 </body>
 </html>
