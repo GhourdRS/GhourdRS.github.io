@@ -141,6 +141,9 @@ select{font:inherit;font-size:15px;padding:4px 6px;border-radius:6px;border:1px 
 [data-cpopen][aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
 .custompanel{margin-bottom:16px}
 .cphead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px}
+.bkp{display:flex;gap:6px;flex-wrap:wrap}
+.bkpmsg{margin:6px 0 0}
+#notifyBtn.on::before{content:"🔔 "}
 .cphead h2{font-family:var(--display);font-size:22px;font-weight:800;margin:0}
 .cpbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
 .cpbar input{flex:1 1 260px;min-width:0;font:500 16px var(--body);padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--sunk);color:var(--fg)}
@@ -320,9 +323,16 @@ footer{margin-top:22px;color:var(--muted);font-size:13.5px;max-width:75ch}
     <div class="cphead">
       <h2>Patch timers</h2>
       <p class="note" style="margin:0">Ticking a step in Your route starts its timer, using this device's clock. Ticked here = ready to harvest; untick a patch to clear its timer.</p>
+      <div class="bkp" title="Timers and settings are saved in this browser only. Export them to a file to move them to another device or browser.">
+        <button type="button" class="chipbtn" id="exportBtn">Export timers &amp; settings</button>
+        <button type="button" class="chipbtn" id="importBtn">Import</button>
+        <input type="file" id="importFile" accept=".json,application/json" hidden>
+      </div>
     </div>
+    <p class="note bkpmsg" id="bkpMsg" role="status" hidden></p>
     <div class="cpbar">
       <button type="button" class="chipbtn" data-cp="only" id="timersOnly" title="Plan only the patches that are ready, e.g. herbs now and trees later">Ready patches only</button>
+      <button type="button" class="chipbtn" id="notifyBtn" title="Get a browser notification when a patch finishes growing (while this page is open in a tab)">Notify me when ready</button>
       <input type="search" class="cpsearch" id="timersSearch" placeholder="Search patches, e.g. herb, Catherby, Fossil" autocomplete="off" aria-label="Search farm patches">
       <button type="button" class="chipbtn" data-cp="fold" id="timersFoldAll">Collapse all</button>
       <button type="button" class="chipbtn" data-cp="all" id="timersCheckAll">Check all</button>
@@ -2545,9 +2555,64 @@ rpWrap.addEventListener("mouseenter", ()=>{ clearTimeout(rpHide); showRp(); });
 rpWrap.addEventListener("mouseleave", ()=>{ rpHide = setTimeout(()=>{ $("rpPop").hidden = true; }, 150); });
 $("creditLink").addEventListener("focus", showRp);
 $("creditLink").addEventListener("blur", ()=>{ $("rpPop").hidden = true; });
+/* ---------- Export / import: move timers and settings to another device ---------- */
+const bkpMsg = (t, ok)=>{ const m = $("bkpMsg"); m.textContent = t; m.hidden = !t; m.style.color = ok===false ? "var(--warn)" : ""; };
+$("exportBtn").addEventListener("click", ()=>{
+  const data = JSON.parse(JSON.stringify(S)); delete data.prices; delete data.priceIds;   // prices reload by themselves
+  const blob = new Blob([JSON.stringify({app:"farm-run-planner", version:1, exported:new Date().toISOString(), data}, null, 1)], {type:"application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = `farm-run-planner-backup-${ymd(new Date())}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  bkpMsg("Saved a backup file. On the other device, open Patch timers and press Import.");
+});
+$("importBtn").addEventListener("click", ()=>$("importFile").click());
+$("importFile").addEventListener("change", async e=>{
+  const f = e.target.files[0]; e.target.value = ""; if(!f) return;
+  try{
+    const j = JSON.parse(await f.text());
+    if(!j || j.app!=="farm-run-planner" || typeof j.data!=="object") throw 0;
+    if(!confirm("Replace the timers and settings in this browser with the ones from this backup?")) return;
+    localStorage.setItem("farmRunPlanner", JSON.stringify(j.data));
+    location.reload();
+  }catch(err){ bkpMsg("That file isn't a Farm Run Planner backup. Pick the .json file made with Export.", false); }
+});
+
+/* ---------- Browser notifications when a patch finishes ---------- */
+const canNotify = "Notification" in window;
+const notifyOn = ()=> canNotify && !!S.notify && Notification.permission==="granted";
+function syncNotifyBtn(){
+  const b = $("notifyBtn");
+  if(!canNotify){ b.hidden = true; return; }
+  b.classList.toggle("on", notifyOn());
+  b.textContent = notifyOn() ? "Notifications on" : Notification.permission==="denied" ? "Notifications blocked" : "Notify me when ready";
+  b.title = Notification.permission==="denied" ? "Your browser is blocking notifications for this site. Allow them in the site settings (the icon left of the address bar), then press again."
+    : "Get a browser notification when a patch finishes growing (while this page is open in a tab)";
+}
+$("notifyBtn").addEventListener("click", async ()=>{
+  if(notifyOn()){ S.notify = false; save(); syncNotifyBtn(); return; }
+  const p = Notification.permission==="granted" ? "granted" : await Notification.requestPermission();
+  S.notify = p==="granted"; save(); syncNotifyBtn();
+  if(S.notify) new Notification("Farm Run Planner", {body:"You'll get a notification here when a patch is ready, as long as this page stays open in a tab."});
+});
+syncNotifyBtn();
+// Patches that finish while the page is open; each finish is announced once
+const pageOpened = Date.now();
+function checkNotify(){
+  const t = tm(); t.notified ||= {};
+  const fresh = PATCHES.filter(p=>{ const r = readyAt(p.id); return r!=null && r<=Date.now() && r>=pageOpened-60000 && t.notified[p.id]!==r; });
+  fresh.forEach(p=>{ t.notified[p.id] = readyAt(p.id); });
+  if(!fresh.length) return;
+  save();
+  if(!notifyOn()) return;
+  const by = {}; fresh.forEach(p=>{ const c = catLabel(catOf(p.type)); (by[c] ||= new Set()).add(baseName(p.name)); });
+  const body = Object.entries(by).map(([c,set])=>`${c}: ${[...set].join(", ")}`).join("\n");
+  try{ const n = new Notification("Patches ready", {body, tag:"farm-ready", renotify:true}); n.onclick = ()=>{ window.focus(); n.close(); }; }catch(e){}
+}
+
 // Keep timers live: refresh countdowns, and re-plan when a patch becomes ready in Ready patches only mode
 let lastReady = readySig();
 setInterval(()=>{
+  checkNotify();
   const sig = readySig();
   const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest("#tmForm");
   if(typing){ lastReady = sig; return; }
