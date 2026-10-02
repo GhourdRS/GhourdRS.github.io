@@ -2379,9 +2379,11 @@ document.addEventListener("change", e=>{
 });
 document.addEventListener("click", e=>{
   const open = e.target.closest("[data-cpopen]");
-  if(open){ const k = open.dataset.cpopen, pn = $(k+"Panel"); pn.hidden = !pn.hidden;
-    open.setAttribute("aria-expanded", String(!pn.hidden));
-    if(!pn.hidden){ renderPicker(k); $(k+"Search").focus(); } return; }
+  if(open){ const k = open.dataset.cpopen, pn = $(k+"Panel"), show = pn.hidden;
+    // Works like tabs: opening one panel closes the others; clicking the open one closes it
+    document.querySelectorAll("[data-cpopen]").forEach(b=>{ const other = $(b.dataset.cpopen+"Panel");
+      const on = b===open && show; other.hidden = !on; b.setAttribute("aria-expanded", String(on)); });
+    if(show){ renderPicker(k); $(k+"Search").focus({preventScroll:true}); } return; }
   const pn = e.target.closest("[data-cpk]"); if(!pn) return;
   const k = pn.dataset.cpk, st = cpState(k);
   const on = CP[k].isOn || (id=>st.ids.includes(id));
