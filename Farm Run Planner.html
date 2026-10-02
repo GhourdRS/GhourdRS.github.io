@@ -825,6 +825,9 @@ const BIRD_SEED = "Barley seed", BIRD_SEEDS = 10;
 const BH_BUILD = {"Bird house":["Logs",5,15],"Oak bird house":["Oak logs",15,20],"Willow bird house":["Willow logs",25,25],"Teak bird house":["Teak logs",35,30],
   "Maple bird house":["Maple logs",45,35],"Mahogany bird house":["Mahogany logs",50,40],"Yew bird house":["Yew logs",60,45],"Magic bird house":["Magic logs",75,50],"Redwood bird house":["Redwood logs",90,55]};
 const buildBh = ()=> !!S.lo.buildBh;
+/* A bird house is already up if Patch timers knows about it (from your last run, or ticked there by hand).
+   Emptying it gives its clockwork back, so you only need logs to build the new one. */
+const bhPlaced = id => typeof readyAt==="function" && readyAt(id)!=null;
 const isTreeType = t => ["tree","fruit","hardwood","calquat","celastrus","redwood"].includes(t);
 const levelFor = type => TYPES[type].skill==="Hunter" ? (S.hunter||1) : S.lvl;
 /* Flowers (OSRS Wiki Flower patch): total XP per patch, items harvested, GE item name, and which allotment crops they protect */
@@ -1446,8 +1449,8 @@ function layout(stops){
     if(s.p.type==="birdhouse"){
       if(buildBh()){
         const [logs, clvl, cxp] = BH_BUILD[s.crop[0]];
-        add({name:logs, icon:logs.replace(/ /g,"_"), qty:1, kind:"crop", at:[label(s)], atLabel:"Build a bird house at", info:[`For a ${s.crop[0].toLowerCase()} (Crafting ${clvl}, ${cxp} Crafting XP)`]});
-        add({name:"Clockwork", icon:"Clockwork", qty:1, kind:"crop", at:[label(s)], atLabel:"Build a bird house at"});
+        add({name:logs, icon:logs.replace(/ /g,"_"), qty:1, kind:"crop", at:[label(s)], atLabel:"Build a bird house at", info:[`For a ${s.crop[0].toLowerCase()} (Crafting ${clvl}, ${cxp} Crafting XP)`].concat(bhPlaced(s.p.id)?["Use the clockwork from the bird house you empty here"]:[])});
+        if(!bhPlaced(s.p.id)) add({name:"Clockwork", icon:"Clockwork", qty:1, kind:"crop", at:[label(s)], atLabel:"Build a bird house at"});
       } else
       add({name:s.crop[0], icon:s.crop[0].replace(/ /g,"_"), qty:1, kind:"crop", at:[label(s)], atLabel:"Set up at", info:[`${BIRD[s.crop[0]].toLocaleString()} Hunter XP when emptied`]});
       add({name:BIRD_SEED, icon:BIRD_SEED.replace(/ /g,"_")+"_5", qty:BIRD_SEEDS, stack:true, kind:"crop", at:[label(s)], atLabel:"Bird house bait at"});
@@ -1937,7 +1940,7 @@ function renderRoute(){
         const pName = `${where} · ${sub ? sub[0].toUpperCase()+sub.slice(1) : what}`, pm = mapTip([s], pName);
         return walk + `<li class="plot${S.done.includes(s.p.id)?' done':''}"${pm?` data-tip="map" data-tiph="${esc(pm).replace(/"/g,"&quot;")}" data-map="${wikiMapUrl([s])}"`:""}>
           <span class="plotname">${sub ? sub[0].toUpperCase()+sub.slice(1) : what}</span>
-          <span class="crop">${s.p.type==="birdhouse" ? `${buildBh()?"Build and set up a":"Set up a"} <strong>${s.crop[0].toLowerCase()}</strong>${buildBh()?` (${BH_BUILD[s.crop[0]][0].toLowerCase()} + clockwork)`:""} with ${BIRD_SEEDS} ${BIRD_SEED.toLowerCase()}s <span class="tag">Hunter ${s.crop[1]}</span>`
+          <span class="crop">${s.p.type==="birdhouse" ? `${buildBh()?"Build and set up a":"Set up a"} <strong>${s.crop[0].toLowerCase()}</strong>${buildBh()?` (${BH_BUILD[s.crop[0]][0].toLowerCase()} + ${bhPlaced(s.p.id)?"the clockwork from the old one":"clockwork"})`:""} with ${BIRD_SEEDS} ${BIRD_SEED.toLowerCase()}s <span class="tag">Hunter ${s.crop[1]}</span>`
             : `Plant ${seedsFor(s.p.type,s.crop[0])>1?seedsFor(s.p.type,s.crop[0])+" × ":""}<strong>${s.crop[0]}</strong> <span class="tag">lvl ${s.crop[1]}</span>`}</span>
           ${care?`<span class="pay">${care.replace(/\.$/,"")}.</span>`:""}
         </li>`;
@@ -2080,7 +2083,7 @@ function estimate(stops){
     ck = crop(s);
     if(s.p.type==="birdhouse"){
       const hx = BIRD[c[0]]; r.hunterXp += hx; const hr = r.hunterBy[c[0]] ||= {n:0, xp:0}; hr.n++; hr.xp += hx;
-      if(buildBh()){ const [logs,,cxp] = BH_BUILD[c[0]]; charge(logs.toLowerCase(), 1, "Bird houses"); charge("clockwork", 1, "Bird houses");
+      if(buildBh()){ const [logs,,cxp] = BH_BUILD[c[0]]; charge(logs.toLowerCase(), 1, "Bird houses"); if(!bhPlaced(s.p.id)) charge("clockwork", 1, "Bird houses");
         r.craftXp = (r.craftXp||0) + cxp; }
       else charge(c[0].toLowerCase(), 1, "Bird houses");
       charge(BIRD_SEED.toLowerCase(), BIRD_SEEDS, "Bird houses");
