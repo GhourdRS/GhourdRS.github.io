@@ -234,6 +234,9 @@ a.wiki:hover{text-decoration:underline dotted;text-underline-offset:3px}
 .invpanel{display:grid;grid-template-columns:repeat(4,42px);grid-auto-rows:36px;column-gap:6px;row-gap:2px;padding:12px 14px}
 .islot{position:relative;display:grid;place-items:center;border-radius:3px;cursor:help}
 .islot.empty{cursor:default}
+.itag{position:absolute;left:50%;bottom:-3px;transform:translateX(-50%);z-index:2;white-space:nowrap;pointer-events:none;
+  font:500 10px/1 "Alegreya Sans","Segoe UI",sans-serif;color:#fff;letter-spacing:.01em;
+  text-shadow:1px 0 0 #000,-1px 0 0 #000,0 1px 0 #000,0 -1px 0 #000,1px 1px 0 #000}
 .islot:not(.empty):hover,.eslot.has:hover,.islot:focus-visible,.eslot:focus-visible{background:rgba(255,255,255,.08)}
 .eslot img,.islot img{max-width:36px;max-height:32px;image-rendering:pixelated;filter:drop-shadow(1px 1px 0 rgba(0,0,0,.6))}
 .q{position:absolute;left:-1px;top:-2px;z-index:2;font:600 15px/1 "IBM Plex Mono",ui-monospace,monospace;color:#ffff00;letter-spacing:-.02em;pointer-events:none;
@@ -1559,6 +1562,22 @@ const tierBadge = it => it.tier ? `<span class="tier">${it.tier}</span>` : "";
 const EQ_LAYOUT = [["Head",1,2],["Cape",2,1],["Neck",2,2],["Ammo",2,3],["Weapon",3,1],["Body",3,2],["Shield",3,3],["Legs",4,2],["Hands",5,1],["Feet",5,2],["Ring",5,3]];
 let TIPS = [];
 const esc = s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+/* Bank-tag style short names under seeds, saplings, payments and other run supplies */
+const TAG_SHORT = {"Mahogany":"Mahog","Lantadyme":"Lanta","Snapdragon":"Snap","Cadantine":"Cadan","Toadflax":"Toad","Avantoe":"Avan","Dwarf weed":"Dwarf",
+  "Harralander":"Harra","Marrentill":"Marren","Tarromin":"Tarro","Watermelon":"Melon","Snape grass":"Snape","Strawberry":"Straw","Sweetcorn":"Corn",
+  "Pineapple":"Pine","Dragonfruit":"Dragon","Celastrus":"Celas","Redwood":"Redwd","Rosewood":"Rose","Ironwood":"Iron","Jangerberry":"Janger",
+  "Whiteberry":"White","Cadavaberry":"Cadava","Dwellberry":"Dwell","Redberry":"Redb","Poison ivy":"Ivy","Krandorian":"Krand","Wildblood":"Wild",
+  "Hammerstone":"Hammer","Asgarnian":"Asgar","Yanillian":"Yanill","Nasturtium":"Nastur","White lily":"Lily","Limpwurt":"Limp","Rosemary":"Rosem",
+  "Marigold":"Mari","Potato cactus":"P.cact","Giant seaweed":"Seawd","Bittercap":"Mush","Belladonna":"Bella","Spirit tree":"Spirit","Crystal tree":"Crystal",
+  "Elkhorn coral":"Elkhrn","Pillar coral":"Pillar","Umbral coral":"Umbral","Mushroom spore":"Mush","Seaweed spore":"Seawd"};
+function itemTag(it){
+  if(it.kind!=="crop" && it.kind!=="pay") return "";
+  let n = it.name.replace(/ (seed|sapling|spore|frag|bird house|logs)$/i,"").replace(/^(Sack|Basket|Bunch) of /i,"").replace(/ (fruit|berries|root)$/i,"");
+  if(/^(Logs|Bird house)$/i.test(it.name)) n = "Normal";
+  if(TAG_SHORT[n]) return TAG_SHORT[n];
+  const w = n.split(" ")[0];
+  return w.length>7 ? w.slice(0,6) : w;
+}
 function fmtQty(n){
   if(n>=10000000) return `<span class="q q-m">${Math.floor(n/1e6)}M</span>`;
   if(n>=100000) return `<span class="q q-k">${Math.floor(n/1000)}K</span>`;
@@ -1631,7 +1650,7 @@ function renderLoadout(trips){
     return `<a class="eslot has" href="${wikiUrl(wikiFor(it.name))}" target="_blank" rel="noopener" data-item="${esc(itemKey(it))}" style="grid-row:${r};grid-column:${c}" data-tip="${tipFor(it,slot)}">${itemImg(it)}${tierBadge(it)}</a>`;
   }).join("");
   const cells = L.inv.slice(0,28).map(it=>
-    `<a class="islot" href="${wikiUrl(wikiFor(it.name))}" target="_blank" rel="noopener" data-item="${esc(itemKey(it))}" data-tip="${tipFor(it)}">${itemImg(it)}${it.stack?fmtQty(it.qty):""}${tierBadge(it)}</a>`);
+    `<a class="islot" href="${wikiUrl(wikiFor(it.name))}" target="_blank" rel="noopener" data-item="${esc(itemKey(it))}" data-tip="${tipFor(it)}">${itemImg(it)}${it.stack?fmtQty(it.qty):""}${tierBadge(it)}${itemTag(it)?`<span class="itag">${esc(itemTag(it))}</span>`:""}</a>`);
   for(let i=cells.length;i<28;i++) cells.push(`<div class="islot empty"></div>`);
   const over = L.slots>28 ? `<div class="warnbox">This trip needs ${L.slots} slots. Switch to a bottomless compost bucket or skip a patch.</div>` : "";
 
