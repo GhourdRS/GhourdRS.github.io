@@ -1649,10 +1649,10 @@ function renderLoadout(trips){
     if(!it) return `<div class="eslot" style="grid-row:${r};grid-column:${c}" data-tip="${TIPS.push(`<div class="tn">${slot}</div><div>Your choice (graceful, farmer's outfit, etc.)</div>`)-1}" aria-label="${slot}: your choice"></div>`;
     return `<a class="eslot has" href="${wikiUrl(wikiFor(it.name))}" target="_blank" rel="noopener" data-item="${esc(itemKey(it))}" style="grid-row:${r};grid-column:${c}" data-tip="${tipFor(it,slot)}">${itemImg(it)}${tierBadge(it)}</a>`;
   }).join("");
-  // Saplings (and other one-per-slot supplies) show how many you carry on the first slot of each kind, like a stack
-  const perKind = {}, shownKind = new Set();
+  // Saplings (and other one-per-slot supplies) show how many of that kind you carry, like a stack
+  const perKind = {};
   L.inv.forEach(it=>{ if(!it.stack && it.kind==="crop"){ const k = itemKey(it); perKind[k] = (perKind[k]||0) + 1; } });
-  const kindQty = it => { const k = itemKey(it); if(it.stack || it.kind!=="crop" || perKind[k]<2 || shownKind.has(k)) return ""; shownKind.add(k); return fmtQty(perKind[k]); };
+  const kindQty = it => it.stack || it.kind!=="crop" ? "" : fmtQty(perKind[itemKey(it)]);   // every slot shows the total of its kind, even 1
   const cells = L.inv.slice(0,28).map(it=>
     `<a class="islot" href="${wikiUrl(wikiFor(it.name))}" target="_blank" rel="noopener" data-item="${esc(itemKey(it))}" data-tip="${tipFor(it)}">${itemImg(it)}${it.stack?fmtQty(it.qty):kindQty(it)}${tierBadge(it)}${itemTag(it)?`<span class="itag">${esc(itemTag(it))}</span>`:""}</a>`);
   for(let i=cells.length;i<28;i++) cells.push(`<div class="islot empty"></div>`);
