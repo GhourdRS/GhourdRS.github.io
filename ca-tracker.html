@@ -182,6 +182,23 @@ summary.none span.n{color:#a0a0a0}
 .rpopen:hover{color:var(--gold)}
 @media(max-width:560px){.rpstats{grid-template-columns:repeat(2,1fr)}.rpskills{grid-template-columns:repeat(2,1fr)}}
 @media(prefers-reduced-motion:reduce){.fill{transition:none}}
+/* Minimize the header: hides the search, filters and tier buttons so the task list has room */
+button.hdrtog{margin-left:auto;padding:4px 12px;font-size:16px;white-space:nowrap}
+header.min #hdrTools{display:none}
+header.min .stats{gap:10px}
+header.min .big{font-size:24px}
+header.min .sub#cnt{display:none}
+header.min .tierline{display:none}
+header.min .track{height:28px}
+header.min .bar-row b{font-size:15px;line-height:1.1;text-align:center;padding:0 4px}
+header.min .bar{min-width:0}
+/* On phones the header scrolls away with the page instead of sticking over the list */
+@media(max-width:700px){
+  header{position:relative}
+  header.min{position:sticky}
+  .head{gap:6px 10px}
+  button.hdrtog{margin-left:0}
+}
 .crumbs{margin:0 0 6px;font-size:16px}
 .crumbs a{color:var(--dim);text-decoration:none}
 .crumbs a:hover{color:var(--gold);text-decoration:underline}
@@ -217,7 +234,8 @@ summary.none span.n{color:#a0a0a0}
         <ul class="rpskills"><li><span>Attack</span><b>99</b></li><li><span>Hitpoints</span><b>99</b></li><li><span>Mining</span><b>81</b></li><li><span>Strength</span><b>99</b></li><li><span>Agility</span><b>90</b></li><li><span>Smithing</span><b>85</b></li><li><span>Defence</span><b>99</b></li><li><span>Herblore</span><b>90</b></li><li><span>Fishing</span><b>88</b></li><li><span>Ranged</span><b>99</b></li><li><span>Thieving</span><b>99</b></li><li><span>Cooking</span><b>95</b></li><li><span>Prayer</span><b>97</b></li><li><span>Crafting</span><b>86</b></li><li><span>Firemaking</span><b>82</b></li><li><span>Magic</span><b>99</b></li><li><span>Fletching</span><b>81</b></li><li><span>Woodcutting</span><b>76</b></li><li><span>Runecraft</span><b>80</b></li><li><span>Slayer</span><b>95</b></li><li><span>Farming</span><b>82</b></li><li><span>Construction</span><b>85</b></li><li><span>Hunter</span><b>81</b></li><li><span>Sailing</span><b>63</b></li></ul>
         <div class="rpnote">Snapshot of the profile when this tool was built.</div>
         <a class="rpopen" href="https://runeprofile.com/ghourd" target="_blank" rel="noopener">Open full RuneProfile page</a>
-      </div></span></span></div>
+      </div></span></span>
+    <button type="button" id="hdrToggle" class="hdrtog" aria-expanded="true" aria-controls="hdrTools" title="Hide or show the search, filters and tier buttons">&#9650; Hide filters</button></div>
   <div class="stats">
     <div><div class="big" id="pts">0</div><div class="sub" id="cnt">0 / 0 tasks</div></div>
     <div class="bar">
@@ -228,6 +246,7 @@ summary.none span.n{color:#a0a0a0}
       </div>
     </div>
   </div>
+  <div id="hdrTools">
   <div class="tools">
     <span class="combo"><input type="text" id="rsn" placeholder="Username" aria-label="RuneScape name"><button class="primary" id="sync" title="Sync from RuneProfile" aria-label="Sync from RuneProfile">&rarr;</button></span>
     <input type="text" id="q" placeholder="Search" aria-label="Search">
@@ -241,6 +260,7 @@ summary.none span.n{color:#a0a0a0}
     <button id="toggleall">Expand all</button>
     <button id="selall" title="Show or hide every tier">Select all</button>
     <span id="chips" style="display:contents"></span>
+  </div>
   </div>
 </header>
 <main>
@@ -492,6 +512,15 @@ $("rtoggle").onclick=()=>{const ds=[...document.querySelectorAll("#rbody details
 $("rewards").onclick=e=>{if(e.target===$("rewards"))closeRewards()};
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("rewards").hidden)closeRewards()});
 $("q").oninput=render;$("show").onchange=render;$("sort").onchange=render;
+// Header minimize: remembered per browser; starts minimized on phones
+(function(){
+  const h = document.querySelector("header"), b = $("hdrToggle");
+  const set = min => { h.classList.toggle("min", min); b.setAttribute("aria-expanded", String(!min));
+    b.innerHTML = min ? "&#9660; Show filters" : "&#9650; Hide filters"; try{ LS.setItem("ca-hdr-min", min?"1":"0"); }catch(e){} };
+  let saved = null; try{ saved = LS.getItem("ca-hdr-min"); }catch(e){}
+  set(saved==null ? window.matchMedia("(max-width:700px)").matches : saved==="1");
+  b.onclick = ()=> set(!h.classList.contains("min"));
+})();
 load().then(()=>{loadThresholds();loadPct();if(tasks.length&&$("rsn").value.trim())doSync(true)});
 </script>
 </body>
