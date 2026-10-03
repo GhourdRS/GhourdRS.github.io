@@ -961,13 +961,13 @@ const PATCHES = [
       [null,"Varrock Museum barge to Fossil Island, magic mushtree from Verdant Valley → House on the Hill, then take the stairs to the west of the main hall down, cross the bridge to the south and follow the path to the three patches"]]},
   {id:"hw_f2",type:"hardwood",name:"Fossil Island (2 of 3)",order:22,cluster:"fossil",req:["bone"],travel:[[null,"Next to the first patch"]]},
   {id:"hw_f3",type:"hardwood",name:"Fossil Island (3 of 3)",order:23,cluster:"fossil",req:["bone"],travel:[[null,"Next to the first patch"]]},
-  {id:"bh_forest",spot:"bh-forest",type:"birdhouse",name:"Fossil Island (Mushroom Forest bird house)",order:23.1,cluster:"fossil",req:["bone"],
-    travel:[["digsite","Digsite pendant → Fossil Island (main hall of the House on the Hill). The magic mushtree is in the small room at the end of the hall, a few steps away → Mushroom Meadow; the bird house space is just north of it"],
-      ["scroll_dig","Digsite teleport scroll, take the barge to Fossil Island, magic mushtree in Verdant Valley → Mushroom Meadow"],
-      [null,"Varrock Museum barge to Fossil Island, magic mushtree in Verdant Valley → Mushroom Meadow"]]},
-  {id:"bh_tar",spot:"bh-tar",type:"birdhouse",name:"Fossil Island (Tar Swamp bird house)",order:23.2,cluster:"fossil",req:["bone"],travel:[[null,"Next stop"]]},
-  {id:"bh_valley1",spot:"bh-valley",type:"birdhouse",name:"Fossil Island (Verdant Valley north bird house)",order:23.3,cluster:"fossil",req:["bone"],travel:[[null,"Next stop"]]},
-  {id:"bh_valley2",spot:"bh-valley",type:"birdhouse",name:"Fossil Island (Verdant Valley south bird house)",order:23.4,cluster:"fossil",req:["bone"],travel:[[null,"Next stop"]]},
+  {id:"bh_valley1",spot:"bh-valley",type:"birdhouse",name:"Fossil Island (Verdant Valley north bird house)",order:23.1,cluster:"fossil",req:["bone"],
+    travel:[["digsite","Digsite pendant → Fossil Island (main hall of the House on the Hill). The magic mushtree is in the small room at the end of the hall, a few steps away → Verdant Valley; both bird house spaces are south of the Museum Camp"],
+      ["scroll_dig","Digsite teleport scroll, take the barge to Fossil Island and walk south past the Museum Camp to the Verdant Valley spaces"],
+      [null,"Varrock Museum barge to Fossil Island and walk south past the Museum Camp to the Verdant Valley spaces"]]},
+  {id:"bh_valley2",spot:"bh-valley",type:"birdhouse",name:"Fossil Island (Verdant Valley south bird house)",order:23.15,cluster:"fossil",req:["bone"],travel:[[null,"Next stop"]]},
+  {id:"bh_forest",spot:"bh-forest",type:"birdhouse",name:"Fossil Island (Mushroom Forest bird house)",order:23.2,cluster:"fossil",req:["bone"],travel:[[null,"Next stop"]]},
+  {id:"bh_tar",spot:"bh-tar",type:"birdhouse",name:"Fossil Island (Tar Swamp bird house)",order:23.3,cluster:"fossil",req:["bone"],travel:[[null,"Next stop"]]},
   {id:"h_mory",type:"herb",cluster:"mory",name:"Morytania (Port Phasmatys)",order:24,req:["pip"],travel:[["ectophial","Ectophial, run west past the ectofuntus"],["fairy","Fairy ring A L Q, run north"],["nx_kharyrll","House teleport → Portal nexus (Kharyrll), run east from Canifis"],["nx_fenk","House teleport → Portal nexus (Fenkenstrain's Castle), run north-east past Canifis"],[null,"Walk east from Canifis"]]},
   {id:"h_harm",type:"herb",cluster:"harm",name:"Harmony Island",order:25,req:["moryElite"],travel:[["harmonyTele","Harmony Island Teleport, run south"],["scroll_mos","Mos Le'Harmless teleport scroll, then Brother Tranquility's boat"],["ectophial","Ectophial, then Brother Tranquility's boat at the dock"],[null,"Brother Tranquility's boat from Port Phasmatys"]]},
   {id:"h_troll",type:"herb",name:"Trollheim",order:26,req:["mabA"],travel:[["stony","Stony basalt → Stronghold roof, run a few steps west","roof"],["stony","Stony basalt → Stronghold entrance, climb up through the Stronghold to the roof"],["pohTroll","Trollheim teleport tablet (redirected), run west and climb up through the Stronghold"],["hilt","Ghommal's hilt → God Wars Dungeon entrance, run south-west and climb up through the Stronghold"],["trollTele","Trollheim Teleport, run west and climb up through the Stronghold"],[null,"Climb Death Plateau from Burthorpe to the Troll Stronghold"]]},
@@ -1782,7 +1782,7 @@ const MUSHTREE = {house:[3764,3879,"Magic mushtree (House on the Hill)"], meadow
 // Which mushtree a direction tells you to use (the one you set off from)
 function mushFrom(text, spot){
   if(!/mushtree/i.test(text)) return null;
-  if(spot==="bh-valley") return "meadow";
+  if(spot==="bh-forest") return "valley";
   if(/mushtree (?:in|from) Verdant Valley/i.test(text)) return "valley";
   if(/small room at the end of the (?:main )?hall|House on the Hill/i.test(text)) return "house";
   return null;
@@ -1818,9 +1818,9 @@ const SPOT_WALK = {
   "cath": "Run west along the beach to Catherby bank, then north to the farming patches",
   "fg-west": "Run west through the centre of the guild into the west wing",
   "fg-north": "Run back to the centre of the guild, then north into the advanced wing",
-  "bh-forest": "Go back along the path, north over the bridge and up the stairs into the main hall of the House on the Hill. The magic mushtree is in the small room at the end of the main hall → Mushroom Meadow; the bird house space is just north of it, west of the Ancient Shroom",
-  "bh-tar": "Run south from the first bird house, down past the Mushroom Meadow, to the Tar Swamp entrance; the space is beside it (quicker than the mushtree)",
-  "bh-valley": "Run north back up to the Mushroom Meadow magic mushtree → Verdant Valley; both spaces are south of the Museum Camp",
+  "bh-forest": "Use the Verdant Valley magic mushtree → Mushroom Meadow; the bird house space is just north of it, west of the Ancient Shroom",
+  "bh-tar": "Run south from the Mushroom Meadow bird house to the Tar Swamp entrance; the space is beside it (quicker than the mushtree)",
+  "bh-valley": "Go back along the path, north over the bridge and up the stairs into the main hall of the House on the Hill. The magic mushtree is in the small room at the end of the main hall → Verdant Valley; both spaces are south of the Museum Camp",
   "kast-south": "Run east to the patches just south of where the Pendant of Ates lands",
   "fossil-sea": "Take the rowboat at the north-east of the Mushroom Forest down to the underwater patches (diving gear needed)",
   "etc-spirit": "Run to the south-east of Etceteria for the spirit tree patch",
