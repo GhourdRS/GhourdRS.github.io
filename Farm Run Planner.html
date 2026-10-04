@@ -142,6 +142,13 @@ select{font:inherit;font-size:15px;padding:4px 6px;border-radius:6px;border:1px 
 .locklist{margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:14px}
 .locklist li{margin:2px 0}
 .warnbox{background:var(--warn-bg);color:var(--warn);border-radius:8px;padding:8px 10px;font-size:14px;margin-top:8px}
+.growbox{background:var(--sunk);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px;margin-top:8px;font-weight:700}
+.growlist{list-style:none;margin:6px 0 0;padding:0;font-size:14px}
+.growlist li{display:flex;justify-content:space-between;gap:12px;padding:3px 8px;border-bottom:1px dashed var(--line)}
+.growlist li:last-child{border-bottom:0}
+.growlist .gt{font-family:var(--mono);font-size:13px;color:var(--muted);white-space:nowrap}
+.growlist .gt.soon{color:var(--accent)}
+.growlist .gh{padding:6px 8px 2px;border:0;color:var(--muted);font:700 12px var(--display);letter-spacing:.06em;text-transform:uppercase}
 .toolbar{display:flex;justify-content:flex-end;gap:10px;margin:-6px 0 12px}
 [data-cpopen][aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
 .custompanel{margin-bottom:16px}
@@ -545,6 +552,7 @@ footer{margin-top:22px;color:var(--muted);font-size:13.5px;max-width:75ch}
         </div>
         <div id="routeTabs"></div>
         <ol class="route" id="route"></ol>
+        <div id="growingWrap"></div>
         <div id="lockedWrap"></div>
       </details>
 
@@ -1292,8 +1300,6 @@ function plan(){
     // run types plus any patches picked in the custom list
     if(!S.types.includes(p.type) && !customIds().includes(p.id)) continue;
     if(omitIds().includes(p.id)) continue;   // Omit locations always wins
-    // Ready patches only: skip patches still growing (steps you've ticked this run stay put)
-    if(S.timers && S.timers.only && !isReady(p.id) && !S.done.includes(p.id)) continue;
     if((S.removed||[]).includes(p.id)){ removed.push(p); continue; }
     const crop = cropFor(p.type);
     const why = [];
@@ -1301,6 +1307,10 @@ function plan(){
     if(p.access && S.lvl<p.access) why.push(`${p.access} Farming for guild access`);
     (p.req||[]).forEach(r=>{ if(!has(r)) why.push(REQ_LABEL[r]); });
     if(why.length){ locked.push({p,why}); continue; }
+    // (after the lock check, so locked patches are always listed)
+    // Ready patches only: skip patches still growing (steps you've ticked this run stay put)
+    if(S.timers && S.timers.only && !isReady(p.id) && !S.done.includes(p.id)) continue;
+
     const usable = withHouse(p.travel).filter(t=>(t[0]===null || has(t[0])) && (!t[2] || has(t[2])));
     stops.push({p,crop,best:usable[0],alt:pickBackup(usable),opts:usable});
   }
@@ -1913,7 +1923,29 @@ function refillAfterRemoval(stops, c){
   list.sort((a,b)=>a.p.order-b.p.order); markWalk(list); markGuards(list);
   return {stops:list, skipped:still, goal: goal==="xp" || !priced ? "xp" : "gp", added};
 }
+/* Ready patches only: everything else you picked that's still growing, soonest first, shown above Locked patches */
+function renderGrowing(){
+  const box = $("growingWrap"); if(!box) return;
+  if(!(S.timers && S.timers.only) || !S.player){ box.innerHTML = ""; return; }
+  const now = Date.now();
+  const list = PATCHES.filter(p=>(S.types.includes(p.type) || customIds().includes(p.id)) && !omitIds().includes(p.id)
+      && !(S.removed||[]).includes(p.id) && !S.done.includes(p.id) && !lockWhy(p).length && !isReady(p.id));
+  if(!list.length){ box.innerHTML = ""; return; }
+  // one row per location (both allotment halves, all 12 vines…), latest finish of the group
+  const rows = {};
+  list.forEach(p=>{ const k = mergeKey(p), r = readyAt(p.id);
+    const row = rows[k] ||= {p, at:r, cat:catOf(p.type)}; if(r==null || (row.at!=null && r>row.at)) row.at = r==null ? row.at : r; });
+  const all = Object.values(rows).sort((a,b)=>(a.at==null)-(b.at==null) || (a.at||0)-(b.at||0) || a.p.name.localeCompare(b.p.name));
+  const when = r => { const d = new Date(r); const today = d.toDateString()===new Date().toDateString();
+    return (today?"":d.toLocaleDateString([], {weekday:"short"})+" ") + d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"}); };
+  const li = ({p,at}) => `<li><span>${esc(TYPES[p.type].merge?baseName(p.name):p.name)} <small style="color:var(--muted)">${esc(TYPES[p.type].label.toLowerCase())}</small></span>`
+    + `<span class="gt${at!=null && at-now<3600000?" soon":""}">${at==null ? "no timer" : `${dur(at-now)} · ${when(at)}`}</span></li>`;
+  const timed = all.filter(r=>r.at!=null), untimed = all.filter(r=>r.at==null);
+  box.innerHTML = `<div class="growbox">Still growing (${all.length})</div>
+    <ul class="growlist">${timed.map(li).join("")}${untimed.length ? `<li class="gh">Not tracked yet</li>${untimed.map(li).join("")}` : ""}</ul>`;
+}
 function renderRoute(){
+  renderGrowing();
   const planned = plan(), locked = planned.locked;
   // Trimming is slow on big runs, so reuse the last result until a setting that affects it changes
   // Saved with your settings, so removing a step keeps the rest of the plan as it was and only refills the freed space
@@ -2766,7 +2798,7 @@ setInterval(()=>{
   const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest("#tmForm");
   if(typing){ lastReady = sig; return; }
   // a patch just became ready and joins the route: refresh prices first so its crop and profit use the latest GE prices
-  if(S.timers && S.timers.only && sig!==lastReady){ renderAll(); loadPrices(true); } else renderPicker("timers");
+  if(S.timers && S.timers.only && sig!==lastReady){ renderAll(); loadPrices(true); } else { renderPicker("timers"); renderGrowing(); }
   lastReady = sig;
 }, 30000);
 if(S.player && (S.magic==null || S.agility==null || S.sailing==null || S.allQuests==null || S.caTier==null || S.hunter==null)) lookup(S.player.name);
