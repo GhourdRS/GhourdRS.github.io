@@ -154,6 +154,15 @@ select{font:inherit;font-size:15px;padding:4px 6px;border-radius:6px;border:1px 
 .custompanel{margin-bottom:16px}
 .cphead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px}
 .bkp{display:flex;gap:6px;flex-wrap:wrap}
+.syncpanel{margin:8px 0 4px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--sunk);display:grid;gap:8px}
+.syncrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:14px}
+.syncrow b{min-width:150px;font-family:var(--display);letter-spacing:.04em;color:var(--muted)}
+.pastebox{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap}
+.pastebox textarea{flex:1 1 260px;min-height:64px;font:13px var(--mono);padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg)}
+.qrbox{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.qrbox .qr{background:#fff;padding:10px;border-radius:8px;line-height:0}
+.qrbox .qr svg{width:min(440px,84vw);height:auto;aspect-ratio:1;display:block;shape-rendering:crispEdges}
+.qrbox p{margin:0;max-width:36ch;font-size:14px}
 .bkpmsg{margin:6px 0 0}
 #notifyBtn.on::before{content:"🔔 "}
 .cphead h2{font-family:var(--display);font-size:22px;font-weight:800;margin:0}
@@ -338,11 +347,30 @@ footer{margin-top:22px;color:var(--muted);font-size:13.5px;max-width:75ch}
     <div class="cphead">
       <h2>Patch timers</h2>
       <p class="note" style="margin:0">Ticking a step in Your route starts its timer, using this device's clock. Ticked here = ready to harvest; untick a patch to clear its timer.</p>
-      <div class="bkp" title="Timers and settings are saved in this browser only. Export them to a file to move them to another device or browser.">
-        <button type="button" class="chipbtn" id="exportBtn">Export timers &amp; settings</button>
-        <button type="button" class="chipbtn" id="importBtn">Import</button>
+      <div class="bkp" title="Timers and settings are saved in this browser only. Move them to another device or browser from here.">
+        <button type="button" class="chipbtn" id="syncToggle" aria-expanded="false" aria-controls="syncPanel">Export / import &#9662;</button>
+      </div>
+    </div>
+    <div class="syncpanel" id="syncPanel" hidden>
+      <div class="syncrow"><b>Send to another device</b>
+        <button type="button" class="chipbtn" id="qrBtn">Show QR code</button>
+        <button type="button" class="chipbtn" id="linkBtn">Copy sync link</button>
+        <button type="button" class="chipbtn" id="codeBtn">Copy code</button>
+      </div>
+      <div class="syncrow"><b>Receive</b>
+        <button type="button" class="chipbtn" id="pasteBtn">Paste code</button>
+        <span class="note" style="margin:0">or open a sync link / scan a QR code on this device</span>
+      </div>
+      <div class="syncrow"><b>File</b>
+        <button type="button" class="chipbtn" id="exportBtn">Export to a file</button>
+        <button type="button" class="chipbtn" id="importBtn">Import a file</button>
         <input type="file" id="importFile" accept=".json,application/json" hidden>
       </div>
+      <div class="pastebox" id="pasteBox" hidden>
+        <textarea id="pasteText" rows="3" placeholder="Paste the code copied on your other device"></textarea>
+        <button type="button" class="chipbtn on" id="pasteGo">Import code</button>
+      </div>
+      <div class="qrbox" id="qrBox" hidden></div>
     </div>
     <p class="note bkpmsg" id="bkpMsg" role="status" hidden></p>
     <div class="cpbar">
@@ -2744,7 +2772,7 @@ $("exportBtn").addEventListener("click", ()=>{
   const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
   a.download = `farm-run-planner-backup-${ymd(new Date())}.json`;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
-  bkpMsg("Saved a backup file. On the other device, open Patch timers and press Import.");
+  bkpMsg("Saved a backup file. On the other device, open Patch timers → Export / import → Import a file.");
 });
 $("importBtn").addEventListener("click", ()=>$("importFile").click());
 $("importFile").addEventListener("change", async e=>{
@@ -2757,6 +2785,102 @@ $("importFile").addEventListener("change", async e=>{
     location.reload();
   }catch(err){ bkpMsg("That file isn't a Farm Run Planner backup. Pick the .json file made with Export.", false); }
 });
+
+/* ---------- Move to another device without a file: sync link, QR code, or a code to paste ---------- */
+/* Compact form for links and QR codes: timers as minutes in base 36 plus the crop's position in its list */
+const syncData = ()=>{
+  const d = JSON.parse(JSON.stringify(S)); delete d.prices; delete d.priceIds; delete d.trimCache; delete d.stepFold;
+  const t = d.timers || {}, z = {}, b36 = ms => ms==null ? "" : Math.round(ms/60000).toString(36);
+  new Set([...Object.keys(t.at||{}), ...Object.keys(t.until||{})]).forEach(id=>{
+    const p = patchById(id); if(!p) return;
+    const ci = CROPS[p.type].findIndex(c=>c[0]===(t.crop||{})[id]);
+    const row = [b36((t.at||{})[id]), ci<0?"":ci, b36((t.until||{})[id])];
+    while(row.length && row[row.length-1]==="") row.pop();
+    z[id] = row;
+  });
+  d.timers = {only:!!t.only, fold:t.fold||{}, z};
+  return d;
+};
+function unpackTimers(d){
+  const t = d.timers || {}; if(!t.z) return d;
+  const at = {}, crop = {}, until = {}, ms = v => v==="" || v==null ? null : parseInt(v,36)*60000;
+  Object.entries(t.z).forEach(([id,[a,ci,u]])=>{ const p = patchById(id); if(!p) return;
+    if(ms(a)!=null) at[id] = ms(a); if(ci!==undefined && ci!=="" && CROPS[p.type][ci]) crop[id] = CROPS[p.type][ci][0]; if(ms(u)!=null) until[id] = ms(u); });
+  d.timers = {only:!!t.only, fold:t.fold||{}, at, crop, until, prev:{}, notified:{}};
+  return d;
+}
+const b64u = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+const unb64u = str => Uint8Array.from(atob(str.replace(/-/g,"+").replace(/_/g,"/")), c=>c.charCodeAt(0));
+async function packSync(){
+  const json = new TextEncoder().encode(JSON.stringify(syncData()));
+  if("CompressionStream" in window){
+    try{ const out = await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer();
+      return "f1." + b64u(new Uint8Array(out)); }catch(e){}
+  }
+  return "f0." + b64u(json);
+}
+async function unpackSync(code){
+  code = String(code||"").trim().replace(/^.*#sync=/,"").replace(/\s+/g,"");
+  const [v, body] = [code.slice(0,3), code.slice(3)];
+  let bytes = unb64u(body);
+  if(v==="f1.") bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+  else if(v!=="f0.") throw 0;
+  const data = JSON.parse(new TextDecoder().decode(bytes));
+  if(!data || typeof data!=="object" || !("types" in data)) throw 0;
+  return unpackTimers(data);
+}
+const syncLink = code => location.href.split("#")[0] + "#sync=" + code;
+function applySync(data){
+  if(!confirm("Replace the timers and settings in this browser with the ones you're bringing over?")) return false;
+  localStorage.setItem("farmRunPlanner", JSON.stringify(data));
+  history.replaceState(null, "", location.href.split("#")[0]);
+  location.reload(); return true;
+}
+async function copyText(t){
+  try{ await navigator.clipboard.writeText(t); return true; }
+  catch(e){ const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select();
+    let ok = false; try{ ok = document.execCommand("copy"); }catch(_){} ta.remove(); return ok; }
+}
+$("syncToggle").addEventListener("click", ()=>{ const p = $("syncPanel"); p.hidden = !p.hidden; $("syncToggle").setAttribute("aria-expanded", String(!p.hidden)); if(p.hidden){ $("qrBox").hidden = true; $("pasteBox").hidden = true; } });
+$("linkBtn").addEventListener("click", async ()=>{
+  const ok = await copyText(syncLink(await packSync()));
+  bkpMsg(ok ? "Sync link copied. Send it to yourself (text, Discord, email) and open it on the other device." : "Couldn't copy automatically. Use Copy code instead.", ok);
+});
+$("codeBtn").addEventListener("click", async ()=>{
+  const ok = await copyText(await packSync());
+  bkpMsg(ok ? "Code copied. On the other device, open Patch timers → Export / import → Paste code." : "Couldn't copy automatically. Try Copy sync link.", ok);
+});
+$("pasteBtn").addEventListener("click", ()=>{ $("pasteBox").hidden = !$("pasteBox").hidden; $("qrBox").hidden = true; if(!$("pasteBox").hidden) $("pasteText").focus(); });
+$("pasteGo").addEventListener("click", async ()=>{
+  try{ applySync(await unpackSync($("pasteText").value)); }
+  catch(e){ bkpMsg("That isn't a Farm Run Planner code. Copy it again on the other device and paste the whole thing.", false); }
+});
+// QR code: drawn with the qrcode-generator library, loaded only when needed
+let qrLib = null;
+const loadQr = ()=> qrLib ||= new Promise((ok, fail)=>{
+  const srcs = ["https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js","https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"];
+  const next = i => { if(i>=srcs.length){ qrLib = null; return fail(); } const sc = document.createElement("script"); sc.src = srcs[i];
+    sc.onload = ()=> window.qrcode ? ok(window.qrcode) : next(i+1); sc.onerror = ()=>{ sc.remove(); next(i+1); }; document.head.appendChild(sc); };
+  next(0);
+});
+$("qrBtn").addEventListener("click", async ()=>{
+  const box = $("qrBox"); $("pasteBox").hidden = true;
+  if(!box.hidden){ box.hidden = true; return; }
+  box.hidden = false; box.innerHTML = `<p>Making the QR code…</p>`;
+  try{
+    const [qrcode, code] = await Promise.all([loadQr(), packSync()]);
+    const qr = qrcode(0, "L"); qr.addData(syncLink(code)); qr.make();
+    box.innerHTML = `<div class="qr">${qr.createSvgTag({cellSize:4, margin:4, scalable:true})}</div>
+      <p>Scan this with your phone's camera. It opens the Farm Run Planner there with these timers and settings.<br><small class="note">The code is a snapshot of right now. Make a new one after you change things.</small></p>`;
+  }catch(e){
+    box.innerHTML = `<p>Couldn't make a QR code here (too much data or no connection). Use <b>Copy sync link</b> instead.</p>`;
+  }
+});
+// Opening a sync link (from the QR code or a copied link) brings the settings in
+if(location.hash.startsWith("#sync=")){
+  unpackSync(location.hash).then(d=>{ if(!applySync(d)) history.replaceState(null, "", location.href.split("#")[0]); })
+    .catch(()=>{ history.replaceState(null, "", location.href.split("#")[0]); bkpMsg("That sync link didn't work. Make a new one on the other device.", false); });
+}
 
 /* ---------- Browser notifications when a patch finishes ---------- */
 const canNotify = "Notification" in window;
