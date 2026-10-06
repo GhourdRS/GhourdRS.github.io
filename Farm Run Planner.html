@@ -149,7 +149,9 @@ select{font:inherit;font-size:15px;padding:4px 6px;border-radius:6px;border:1px 
 .growlist .gt{font-family:var(--mono);font-size:13px;color:var(--muted);white-space:nowrap}
 .growlist .gt.soon{color:var(--accent)}
 .growlist .gh{padding:6px 8px 2px;border:0;color:var(--muted);font:700 12px var(--display);letter-spacing:.06em;text-transform:uppercase}
-.toolbar{display:flex;justify-content:flex-end;gap:10px;margin:-6px 0 12px}
+.toolbar{display:flex;gap:10px;margin:-6px 0 12px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:thin;padding-bottom:4px}
+.toolbar>*{flex:0 0 auto;white-space:nowrap}
+.toolbar>:first-child{margin-left:auto}
 [data-cpopen][aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
 .custompanel{margin-bottom:16px}
 .cphead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px}
