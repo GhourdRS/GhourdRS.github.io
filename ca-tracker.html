@@ -412,7 +412,7 @@ function render(){
   shown=bosses;
   if(!bosses.length){updToggle();L.innerHTML='<div class="empty">'+(tasks.length?"No tasks match these filters.":"Loading tasks…")+'</div>';return}
   bosses.forEach(b=>{
-    const all=tasks.filter(t=>t.monster===b),dn=all.filter(t=>done.has(t.id)).length;
+    const all=tasks.filter(t=>t.monster===b&&tierOn.has(TIERS[t.tier][0])),dn=all.filter(t=>done.has(t.id)).length;
     const det=document.createElement("details");det.open=openBosses.has(b);
     det.ontoggle=()=>{det.open?openBosses.add(b):openBosses.delete(b);updToggle()};
     const s=document.createElement("summary");if(dn===all.length)s.className="done";else if(dn===0)s.className="none";else s.className="part";
