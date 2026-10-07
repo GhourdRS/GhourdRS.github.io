@@ -994,18 +994,18 @@ const PATCHES = [
   {id:"cel_fg",spot:"fg-north",type:"celastrus",name:"Farming Guild",order:18,cluster:"fg",access:85,travel:fgTravel("north")},
   {id:"rw_fg",spot:"fg-north",type:"redwood",name:"Farming Guild",order:19,cluster:"fg",access:85,travel:fgTravel("north"),note:"Climb the redwood ladder to reach the patch."},
   {id:"h_hos",type:"herb",cluster:"hos",name:"Hosidius",order:20,travel:[["xeric","Xeric's talisman → Xeric's Glade, run south-west"],["pohHos","Hosidius teleport tablet, run north to the patch"],["skills","Skills necklace → Woodcutting Guild, run east (45 Agility river jump)","agi45"],["kourendTele","Kourend Castle Teleport, run south to Hosidius"],[null,"Travel to Kourend and walk to Hosidius"]]},
-  {id:"hw_f1",type:"hardwood",name:"Fossil Island (1 of 3)",order:21,cluster:"fossil",req:["bone"],travel:[["digsite","Digsite pendant → Fossil Island (you land in the main hall of the House on the Hill), take the stairs to the west of the main hall down, cross the bridge to the south and follow the path to the three patches"],
+  {id:"hw_f1",type:"hardwood",name:"Fossil Island (1 of 3)",order:121,cluster:"fossil",req:["bone"],travel:[["digsite","Digsite pendant → Fossil Island (you land in the main hall of the House on the Hill), take the stairs to the west of the main hall down, cross the bridge to the south and follow the path to the three patches"],
       ["scroll_dig","Digsite teleport scroll, take the barge to Fossil Island, magic mushtree from Verdant Valley → House on the Hill, then take the stairs to the west of the main hall down, cross the bridge to the south and follow the path to the three patches"],
       [null,"Varrock Museum barge to Fossil Island, magic mushtree from Verdant Valley → House on the Hill, then take the stairs to the west of the main hall down, cross the bridge to the south and follow the path to the three patches"]]},
-  {id:"hw_f2",type:"hardwood",name:"Fossil Island (2 of 3)",order:22,cluster:"fossil",req:["bone"],travel:[[null,"Next to the first patch"]]},
-  {id:"hw_f3",type:"hardwood",name:"Fossil Island (3 of 3)",order:23,cluster:"fossil",req:["bone"],travel:[[null,"Next to the first patch"]]},
-  {id:"bh_valley1",spot:"bh-valley",type:"birdhouse",name:"Fossil Island (Verdant Valley north bird house)",order:23.1,cluster:"fossil",req:["bone"],
+  {id:"hw_f2",type:"hardwood",name:"Fossil Island (2 of 3)",order:122,cluster:"fossil",req:["bone"],travel:[[null,"Next to the first patch"]]},
+  {id:"hw_f3",type:"hardwood",name:"Fossil Island (3 of 3)",order:123,cluster:"fossil",req:["bone"],travel:[[null,"Next to the first patch"]]},
+  {id:"bh_valley1",spot:"bh-valley",type:"birdhouse",name:"Fossil Island (Verdant Valley north bird house)",order:123.1,cluster:"fossil",req:["bone"],
     travel:[["digsite","Digsite pendant → Fossil Island (main hall of the House on the Hill). The magic mushtree is in the small room at the end of the hall, a few steps away → Verdant Valley; both bird house spaces are south of the Museum Camp"],
       ["scroll_dig","Digsite teleport scroll, take the barge to Fossil Island and walk south past the Museum Camp to the Verdant Valley spaces"],
       [null,"Varrock Museum barge to Fossil Island and walk south past the Museum Camp to the Verdant Valley spaces"]]},
-  {id:"bh_valley2",spot:"bh-valley",type:"birdhouse",name:"Fossil Island (Verdant Valley south bird house)",order:23.15,cluster:"fossil",req:["bone"],travel:[[null,"Next stop"]]},
-  {id:"bh_forest",spot:"bh-forest",type:"birdhouse",name:"Fossil Island (Mushroom Forest bird house)",order:23.2,cluster:"fossil",req:["bone"],travel:[[null,"Next stop"]]},
-  {id:"bh_tar",spot:"bh-tar",type:"birdhouse",name:"Fossil Island (Tar Swamp bird house)",order:23.3,cluster:"fossil",req:["bone"],travel:[[null,"Next stop"]]},
+  {id:"bh_valley2",spot:"bh-valley",type:"birdhouse",name:"Fossil Island (Verdant Valley south bird house)",order:123.15,cluster:"fossil",req:["bone"],travel:[[null,"Next stop"]]},
+  {id:"bh_forest",spot:"bh-forest",type:"birdhouse",name:"Fossil Island (Mushroom Forest bird house)",order:123.2,cluster:"fossil",req:["bone"],travel:[[null,"Next stop"]]},
+  {id:"bh_tar",spot:"bh-tar",type:"birdhouse",name:"Fossil Island (Tar Swamp bird house)",order:123.3,cluster:"fossil",req:["bone"],travel:[[null,"Next stop"]]},
   {id:"h_mory",type:"herb",cluster:"mory",name:"Morytania (Port Phasmatys)",order:24,req:["pip"],travel:[["ectophial","Ectophial, run west past the ectofuntus"],["fairy","Fairy ring A L Q, run north"],["nx_kharyrll","House teleport → Portal nexus (Kharyrll), run east from Canifis"],["nx_fenk","House teleport → Portal nexus (Fenkenstrain's Castle), run north-east past Canifis"],[null,"Walk east from Canifis"]]},
   {id:"h_harm",type:"herb",cluster:"harm",name:"Harmony Island",order:25,req:["moryElite"],travel:[["harmonyTele","Harmony Island Teleport, run south"],["scroll_mos","Mos Le'Harmless teleport scroll, then Brother Tranquility's boat"],["ectophial","Ectophial, then Brother Tranquility's boat at the dock"],[null,"Brother Tranquility's boat from Port Phasmatys"]]},
   {id:"h_troll",type:"herb",name:"Trollheim",order:26,req:["mabA"],travel:[["stony","Stony basalt → Stronghold roof, run a few steps west","roof"],["stony","Stony basalt → Stronghold entrance, climb up through the Stronghold to the roof"],["pohTroll","Trollheim teleport tablet (redirected), run west and climb up through the Stronghold"],["hilt","Ghommal's hilt → God Wars Dungeon entrance, run south-west and climb up through the Stronghold"],["trollTele","Trollheim Teleport, run west and climb up through the Stronghold"],[null,"Climb Death Plateau from Burthorpe to the Troll Stronghold"]]},
@@ -1064,9 +1064,9 @@ PATCHES.push(
   {id:"an_fg",type:"anima",name:"Farming Guild",order:15.5,cluster:"fg",spot:"fg-west",access:65,note:"It boosts your other patches while it grows.",travel:fgTravel("west")},
   {id:"st_fg",type:"spirittree",name:"Farming Guild",order:18.5,cluster:"fg",spot:"fg-north",access:85,travel:fgTravel("north")},
   {id:"st_hos",type:"spirittree",name:"Hosidius",order:20.1,travel:[["xeric","Xeric's talisman → Xeric's Glade, run south-west to the spirit tree patch"],["pohHos","Hosidius teleport tablet, run to the spirit tree patch"],["skills","Skills necklace → Woodcutting Guild, run east","agi45"],["kourendTele","Kourend Castle Teleport, run south to Hosidius"],[null,"Travel to Hosidius"]]},
-  {id:"sw_1",type:"seaweed",cluster:"fossil",spot:"fossil-sea",name:"Fossil Island underwater (1 of 2)",order:23.5,req:["bone"],note:"You need diving gear (fishbowl helmet and diving apparatus) or a medallion of the deep.",
+  {id:"sw_1",type:"seaweed",cluster:"fossil",spot:"fossil-sea",name:"Fossil Island underwater (1 of 2)",order:123.5,req:["bone"],note:"You need diving gear (fishbowl helmet and diving apparatus) or a medallion of the deep.",
     travel:[["digsite","Digsite pendant → Fossil Island, then take the rowboat at the north-east of the Mushroom Forest down to the underwater patches"],[null,"Varrock Museum barge to Fossil Island, then take the rowboat at the north-east of the Mushroom Forest down to the underwater patches"]]},
-  {id:"sw_2",type:"seaweed",cluster:"fossil",spot:"fossil-sea",name:"Fossil Island underwater (2 of 2)",order:23.6,req:["bone"],travel:[[null,"Next to the first seaweed patch"]]},
+  {id:"sw_2",type:"seaweed",cluster:"fossil",spot:"fossil-sea",name:"Fossil Island underwater (2 of 2)",order:123.6,req:["bone"],travel:[[null,"Next to the first seaweed patch"]]},
   {id:"mu_can",type:"mushroom",name:"Canifis",order:24.5,req:["pip"],travel:[["fairy","Fairy ring C K S, run to the mushroom patch west of Canifis"],["nx_kharyrll","House teleport → Portal nexus (Kharyrll), run west of Canifis"],["ectophial","Ectophial, run west past Canifis"],["slayer","Slayer ring → Slayer Tower, run north-west past Canifis"],[null,"Walk west from Canifis"]]},
   {id:"bd_auburn",type:"belladonna",name:"Auburnvale",order:29.1,req:["cots"],note:"Wear gloves to pick the nightshade.",travel:[["quetzal","Quetzal whistle → Auburnvale, run east"],["fairy","Fairy ring A I S, run north"],["civitasTele","Civitas illa Fortis Teleport, run east to the Quetzal, fly to Auburnvale, run east"],[null,"Quetzal Transport to Auburnvale, run east"]]},
   {id:"hp_ald",type:"hops",name:"Aldarin",order:29.5,req:["cots"],travel:[["fairy","Fairy ring C K Q, the hops patch is next to it"],["quetzal","Quetzal whistle → Aldarin, run to the hops patch by the fairy ring"],["civitasTele","Civitas illa Fortis Teleport, run east to the Quetzal, fly to Aldarin"],[null,"Quetzal Transport to Aldarin"]]},
@@ -1526,6 +1526,7 @@ function harvestSpace(stops){
   stops.forEach(s=>{ if(SPACE[s.p.type]) n = Math.max(n, SPACE[s.p.type]); });
   return n;
 }
+const isLastStop = u=>u[0].p.cluster==="fossil";
 function splitTrips(stops, want){
   if(want===undefined) want = S.trips||0;
   const units = [];
@@ -1553,7 +1554,9 @@ function splitTrips(stops, want){
     return layout(t).slots + harvestSpace(t) <= cap; };
   const pack = cap=>{
     const order = [], groups = new Map();
-    units.forEach(u=>{ const k = keyOf(u); if(!groups.has(k)){ groups.set(k,[]); order.push(k); } groups.get(k).push(u); });
+    // Fossil Island always ends the run: keep it out of the packing and add it to the last trip at the end
+    const tail = units.filter(isLastStop);
+    units.filter(u=>!isLastStop(u)).forEach(u=>{ const k = keyOf(u); if(!groups.has(k)){ groups.set(k,[]); order.push(k); } groups.get(k).push(u); });
     const bins = [];   // each: {units:[], keys:Set}
     for(const k of order) for(const u of groups.get(k)){
       const home = bins.filter(b=>b.keys.has(k));
@@ -1561,6 +1564,11 @@ function splitTrips(stops, want){
       const b = tryBins.find(b=>fits([...b.units,u], cap));
       if(b){ b.units.push(u); b.keys.add(k); }
       else bins.push({units:[u], keys:new Set([k])});
+    }
+    if(tail.length){
+      const lastBin = bins.reduce((m,b)=>!m || Math.min(...b.units.map(u=>idx.get(u))) > Math.min(...m.units.map(u=>idx.get(u))) ? b : m, null);
+      if(lastBin && fits([...lastBin.units, ...tail], cap)) lastBin.units.push(...tail);
+      else bins.push({units:tail.slice(), keys:new Set()});
     }
     return bins.map(b=>b.units.slice().sort((x,y)=>idx.get(x)-idx.get(y)))
       .sort((a,b)=>idx.get(a[0])-idx.get(b[0])).map(us=>us.flat());
