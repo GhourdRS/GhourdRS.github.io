@@ -637,7 +637,7 @@ const CROPS = {
   herb:[["Guam",9],["Marrentill",14],["Tarromin",19],["Harralander",26],["Ranarr",32],["Toadflax",38],["Irit",44],["Avantoe",50],["Kwuarm",56],["Snapdragon",62],["Huasca",65],["Cadantine",67],["Lantadyme",73],["Dwarf weed",79],["Torstol",85]],
   tree:[["Oak",15,"1 basket of tomatoes"],["Willow",30,"1 basket of apples"],["Maple",45,"1 basket of oranges"],["Yew",60,"10 cactus spines"],["Magic",75,"25 coconuts"]],
   fruit:[["Apple",27,"9 sweetcorn"],["Banana",33,"4 baskets of apples"],["Orange",39,"3 baskets of strawberries"],["Curry",42,"5 bananas"],["Pineapple",51,"10 watermelons"],["Papaya",57,"10 pineapples"],["Palm",68,"15 papaya fruit"],["Dragonfruit",81,"15 coconuts"]],
-  hardwood:[["Teak",35,"15 limpwurt roots"],["Mahogany",55,"25 yanillian hops"],["Camphor",66],["Ironwood",80],["Rosewood",92]],
+  hardwood:[["Teak",35,"15 limpwurt roots"],["Mahogany",55,"25 yanillian hops"],["Camphor",66,"10 white berries"],["Ironwood",80,"10 curry leaves"],["Rosewood",92,"8 dragonfruit"]],
   calquat:[["Calquat",72,"8 poison ivy berries"]],
   celastrus:[["Celastrus",85,"8 potato cacti"]],
   redwood:[["Redwood",90,"6 dragonfruit"]],
@@ -956,7 +956,8 @@ const PAY_ITEM = [
   [/^flax/,"Flax","Flax"],[/^hemp/,"Hemp","Hemp"],[/cadava/,"Cadava berries","Cadava_berries"],[/snape grass/,"Snape grass","Snape_grass"],
   [/bittercap/,"Bittercap mushroom","Bittercap_mushroom"],[/numulite/,"Numulite","Numulite"],[/monkey nut/,"Monkey nuts","Monkey_nuts"],
   [/monkey bar/,"Monkey bar","Monkey_bar"],[/ground tooth/,"Ground tooth","Ground_tooth"],[/giant seaweed/,"Giant seaweed","Giant_seaweed"],
-  [/elkhorn/,"Elkhorn coral","Elkhorn_coral"],[/pillar/,"Pillar coral","Pillar_coral"]
+  [/elkhorn/,"Elkhorn coral","Elkhorn_coral"],[/pillar/,"Pillar coral","Pillar_coral"],
+  [/white berr/,"White berries","White_berries"]
 ];
 /* "5 monkey nuts, 1 monkey bar and 1 ground tooth" → [[5, item], [1, item], [1, item]] */
 const payParts = txt => String(txt||"").split(/, | and /).map(x=>x.match(/^(\d+)\s+(.*)$/)).filter(Boolean)
@@ -1530,10 +1531,24 @@ function harvestSpace(stops){
   return n;
 }
 const isLastStop = u=>u[0].p.cluster==="fossil";
+/* Inside each trip: steps that teleport with a tablet go first, then steps that use a teleport scroll,
+   then the rest in route order (Fossil Island stays last). Walkable clusters stay together. */
+const usesTablet = k => !!k && (k.startsWith("poh") || !!(SPELLS[k] && (useTablets() || SPELLS[k].book!=="std")));
+function tabsFirst(trip){
+  const units = [];
+  trip.forEach(s=>{ if(s.walk && units.length) units[units.length-1].push(s); else units.push([s]); });
+  const rank = u=>{ if(isLastStop(u)) return 3; const k = u[0].best && u[0].best[0];
+    return usesTablet(k) ? 0 : SCROLLS[k] ? 1 : 2; };
+  const out = units.map((u,i)=>({u,i,r:rank(u)})).sort((a,b)=>a.r-b.r||a.i-b.i).flatMap(x=>x.u);
+  return out;
+}
 function splitTrips(stops, want){
   if(want===undefined) want = S.trips||0;
-  const units = [];
+  let units = [];
   stops.forEach((s,i)=>{ const prev=stops[i-1]; if(prev && s.p.cluster && prev.p.cluster===s.p.cluster) units[units.length-1].push(s); else units.push([s]); });
+  // Steps that teleport with the Pendant of Ates always go in the same trip, one after another
+  const atesU = units.filter(u=>u[0].best && u[0].best[0]==="ates");
+  if(atesU.length>1){ const at = units.indexOf(atesU[0]); units = units.filter(u=>!atesU.includes(u)); units.splice(at, 0, atesU.flat()); }
   const greedy = cap=>{
     const trips = []; let cur = [];
     for(const u of units){
@@ -1587,7 +1602,8 @@ function splitTrips(stops, want){
   best.minTrips = minTrips;
   best.forEach(markWalk);
   best.forEach(preferPouchSpells);
-  return best;
+  const ordered = best.map(tabsFirst); ordered.forEach(markWalk); ordered.minTrips = minTrips;
+  return ordered;
 }
 /* Swap a portal nexus teleport for the same spell when its runes fit in the rune pouch
    without pushing any rune type out into the inventory */
@@ -2144,7 +2160,7 @@ async function loadPrices(force){
   if(!force && S.prices && Date.now()-S.prices.at < 10*60*1000) return;
   priceState = {busy:true, error:""};
   try{
-    if(!S.priceIds || S.priceVer!==8){ S.priceVer = 8;
+    if(!S.priceIds || S.priceVer!==9){ S.priceVer = 9;
       const names = priceNames(), ids = {};
       const map = await fetch(PRICE_API+"mapping").then(r=>{ if(!r.ok) throw 0; return r.json(); });
       map.forEach(it=>{ const n = String(it.name).toLowerCase(); if(names.has(n)) ids[n] = it.id; });
