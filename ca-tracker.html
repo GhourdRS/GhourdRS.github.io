@@ -511,7 +511,9 @@ $("rclose").onclick=closeRewards;
 $("rtoggle").onclick=()=>{const ds=[...document.querySelectorAll("#rbody details")];const any=ds.some(d=>d.open);ds.forEach(d=>d.open=!any);updR()};
 $("rewards").onclick=e=>{if(e.target===$("rewards"))closeRewards()};
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("rewards").hidden)closeRewards()});
-$("q").oninput=render;$("show").onchange=render;$("sort").onchange=render;
+// Remember the All tasks / Incomplete / Completed choice between visits
+try{const v=LS.getItem("ca-show");if(v&&[...$("show").options].some(o=>o.value===v))$("show").value=v}catch(e){}
+$("q").oninput=render;$("show").onchange=()=>{try{LS.setItem("ca-show",$("show").value)}catch(e){}render()};$("sort").onchange=render;
 // Header minimize: remembered per browser; starts minimized on phones
 (function(){
   const h = document.querySelector("header"), b = $("hdrToggle");
