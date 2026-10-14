@@ -897,7 +897,7 @@ function tiers(type){
 const SCROLLS = {scroll_tai:"Tai bwo wannai teleport scroll", scroll_mos:"Mos le'harmless teleport scroll", scroll_wyrm:"Colossal wyrm teleport scroll", scroll_dig:"Digsite teleport scroll"};
 /* In-game item names (used for wiki pages and pictures); only the colossal wyrm one has "scroll" in its name */
 const SCROLL_ITEM = {scroll_tai:"Tai bwo wannai teleport", scroll_mos:"Mos le'harmless teleport", scroll_wyrm:"Colossal wyrm teleport scroll", scroll_dig:"Digsite teleport"};
-const teleName = k => SCROLLS[k] ? SCROLLS[k] : k==="hilt" && S.caTier ? `Ghommal's hilt ${S.caTier}` : (TELES.find(t=>t[0]===k)||[])[1] || POH_NAME[k];
+const teleName = k => k==="qpcf" ? "Quest point cape" : SCROLLS[k] ? SCROLLS[k] : k==="hilt" && S.caTier ? `Ghommal's hilt ${S.caTier}` : (TELES.find(t=>t[0]===k)||[])[1] || POH_NAME[k];
 const COMBOS = {Dust:["Air","Earth"],Mist:["Air","Water"],Smoke:["Air","Fire"],Mud:["Water","Earth"],Lava:["Earth","Fire"],Steam:["Water","Fire"]};
 const ELEMENTS = ["Air","Water","Earth","Fire"];
 /* casts: [{runes:{Air:3,Law:1,...}, n}] → fewest rune stacks, using combination runes where they save a slot */
@@ -1104,6 +1104,7 @@ const TABLET_ITEMS = [];
 const CONSUMABLE = new Set();
 const isTablet = k => REDIRECT.includes(k) || TABLET_ITEMS.includes(k) || (SPELLS[k] && SPELLS[k].book!=="std");
 const has = k => {
+  if(k==="qpcf") return has("qpc") && has("fairy");   // Quest point cape → Legends' Guild fairy ring
   if(S.noTabs && isTablet(k)) return false;
   if(k==="lvl99") return S.lvl>=99;
   if(k==="allDiaries") return !!S.allDiaries;
@@ -1358,6 +1359,8 @@ function withHouse(travel){
   const out = [];
   travel.forEach(t=>{
     const alt = t[0] && POH_ALT[t[0]];
+    // Fairy rings: the Quest point cape's Legends' Guild teleport lands 12 tiles from fairy ring B L R
+    if(t[0]==="fairy") out.push(["qpcf", `Quest point cape → Legends' Guild, run east to the fairy ring: ${t[1].replace(/^Fairy ring /,"")}`, t[2]]);
     if(!alt){ out.push(t); return; }
     const rest = t[1].includes(", ") ? t[1].slice(t[1].indexOf(", ")+2) : "";
     const v = alt.startsWith("jb_")
@@ -1396,12 +1399,14 @@ function layout(stops){
   const label = s=>`${s.n}. ${s.p.name}`;
   const teleStops = {};
   stops.forEach(s=>{ if(!s.walk && s.best[0]) (teleStops[s.best[0]] ||= []).push(label(s)); });
+  const ringAt = [...(teleStops.fairy||[]),...(teleStops.pf||[]),...(teleStops.qpcf||[])];
+  if(teleStops.qpcf){ teleStops.qpc = [...(teleStops.qpc||[]), ...teleStops.qpcf]; delete teleStops.qpcf; }   // one cape for both
   const keys = Object.keys(teleStops);
   const sec = {name:"Magic secateurs", icon:ICON["Magic secateurs"], info:["Boosts yield by 10%"]};
   // Only bring them when a stop on this trip benefits: herbs, allotments, celastrus, grapes, bushes, limpwurt, hops, coral
   const useSec = lo.secateurs && stops.some(s=>SECATEUR_TYPES.includes(s.p.type) || (s.p.type==="flower" && s.crop && s.crop[0]==="Limpwurt"));
-  if((keys.includes("fairy") || keys.includes("pf")) && !has("lumbElite")){
-    equip.Weapon = {name:"Dramen staff", icon:ICON["Dramen staff"], at:[...(teleStops.fairy||[]),...(teleStops.pf||[])], atLabel:"Fairy rings at"};
+  if(ringAt.length && !has("lumbElite")){
+    equip.Weapon = {name:"Dramen staff", icon:ICON["Dramen staff"], at:ringAt, atLabel:"Fairy rings at"};
     if(useSec) add({...sec, qty:1, kind:"tool"});
   } else if(useSec) equip.Weapon = sec;
 
@@ -1542,6 +1547,15 @@ const isLastStop = u=>u[0].p.cluster==="fossil";
 /* Inside each trip: steps that teleport with a tablet go first, then steps that use a teleport scroll,
    then the rest in route order (Fossil Island stays last). Walkable clusters stay together. */
 const usesTablet = k => !!k && (k.startsWith("poh") || !!(SPELLS[k] && (useTablets() || SPELLS[k].book!=="std")));
+/* The Quest point cape fairy ring route only when no other cape is worn on that trip
+   (Ardougne cloak, diary or hunter cape, Construction cape house teleports...); otherwise fall back to the next option */
+const wearsCape = k => k && k!=="qpc" && k!=="qpcf" && (TELE_SLOT[k]==="Cape" || (isHouse(k) && houseMode()==="cape"));
+function capeClash(trip){
+  const drop = ()=> trip.forEach(s=>{ if(s.walk || !s.best || s.best[0]!=="qpcf") return;
+    const rest = (s.opts||[]).filter(o=>o[0]!=="qpcf"); if(!rest.length) return;
+    s.best = rest[0]; s.alt = pickBackup(rest); });
+  if(trip.some(s=>!s.walk && s.best && wearsCape(s.best[0]))) drop();
+}
 function tabsFirst(trip){
   const units = [];
   trip.forEach(s=>{ if(s.walk && units.length) units[units.length-1].push(s); else units.push([s]); });
@@ -1610,6 +1624,7 @@ function splitTrips(stops, want){
   best.minTrips = minTrips;
   best.forEach(markWalk);
   best.forEach(preferPouchSpells);
+  best.forEach(capeClash);
   const ordered = best.map(tabsFirst); ordered.forEach(markWalk); ordered.minTrips = minTrips;
   return ordered;
 }
@@ -1825,6 +1840,7 @@ function bringName(k){
   if(isHouse(k)) return "House teleport (" + ({cape:"Construction cape", tabs:"tablet", runes})[houseMode()] + ")" + (k==="pf" && !has("lumbElite") ? " + Dramen staff" : "");
   if(SPELLS[k]) return teleName(k) + (useTablets() || SPELLS[k].book!=="std" ? " (tablet)" : ` (${runes})`);
   if(k==="fairy") return "Fairy rings" + (has("lumbElite") ? "" : " (Dramen staff)");
+  if(k==="qpcf") return "Quest point cape" + (has("lumbElite") ? "" : " + Dramen staff");
   return teleName(k);
 }
 /* ---------- Map preview on each route step ----------
