@@ -1269,7 +1269,7 @@ function rpList(j, key){
   if(j && Array.isArray(j[key])) return j[key];
   return [];
 }
-async function lookup(name){
+async function lookup(name, keepTab){   // keepTab: a background refresh, so stay on the trip you're viewing
   name = name.trim();
   if(!name){ lookupState.error = "Enter an in-game name first."; renderPlayer(); return; }
   lookupState = {busy:true, error:""}; renderPlayer();
@@ -1308,7 +1308,7 @@ async function lookup(name){
     S.questsLeft = quests.filter(q=>q.type!=="mini" && q.state!=="finished").map(q=>q.name);   // shown next to the Quest point cape
     const realName = (sk && (sk.username || (sk.data && sk.data.username))) || name;
     S.player = {name:realName, at:Date.now()};
-    S.lvl = farming.level; S.magic = magic ? magic.level : 1; S.agility = agility ? agility.level : 1; S.sailing = sailing ? sailing.level : 1; S.hunter = hunter ? hunter.level : 1; S.quests = done; S.tab = 0;
+    S.lvl = farming.level; S.magic = magic ? magic.level : 1; S.agility = agility ? agility.level : 1; S.sailing = sailing ? sailing.level : 1; S.hunter = hunter ? hunter.level : 1; S.quests = done; if(!keepTab) S.tab = 0;
     lookupState = {busy:false, error:""};
     renderAll();
   }catch(e){
@@ -2757,8 +2757,8 @@ document.addEventListener("click", e=>{
     S.stepFold = {};
     renderRoute(); save();
   }
-  if(b.hasAttribute("data-reset-run")){ S.done=[]; tm().prev={}; loadPrices(true); S.removed=[]; S.stepFold={}; S.tab=0; renderAll(); }
-  if(b.hasAttribute("data-reset-keep")){ S.done=[]; tm().prev={}; loadPrices(true); S.stepFold={}; S.tab=0; renderRoute(); save(); }
+  if(b.hasAttribute("data-reset-run")){ S.done=[]; tm().prev={}; loadPrices(true); if(S.player) lookup(S.player.name, true); S.removed=[]; S.stepFold={}; S.tab=0; renderAll(); }
+  if(b.hasAttribute("data-reset-keep")){ S.done=[]; tm().prev={}; loadPrices(true); if(S.player) lookup(S.player.name, true); S.stepFold={}; S.tab=0; renderRoute(); save(); }
   if(b.dataset.fold){
     const k = b.dataset.fold, li = b.closest(".stop");
     S.stepFold = S.stepFold || {};
@@ -2985,7 +2985,7 @@ setInterval(()=>{
   if(S.timers && S.timers.only && sig!==lastReady){ renderAll(); loadPrices(true); } else { renderPicker("timers"); renderGrowing(); }
   lastReady = sig;
 }, 30000);
-if(S.player && (S.magic==null || S.agility==null || S.sailing==null || S.allQuests==null || (!S.allQuests && S.questsLeft==null) || S.caTier==null || S.hunter==null)) lookup(S.player.name);
+if(S.player) lookup(S.player.name, true);   // refresh your character from RuneProfile every time the page opens
 loadPrices(true);   // fresh GE prices every time the page opens
 </script>
 </body>
