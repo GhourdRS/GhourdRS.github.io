@@ -1521,14 +1521,22 @@ function layout(stops){
 /* Split the route into bank trips so each fits in 28 slots; never split a walkable cluster */
 /* Free slots kept for what one patch gives back before you note it at the leprechaun:
    herbs (expected yield, rounded up, +1) and fruit (a fruit tree holds 6) */
-function harvestSpace(stops){
-  let n = 0;
-  if(stops.some(s=>s.p.type==="herb") && !S.lo.herbsack) n = Math.max(n, Math.ceil(herbYield())+1);
-  if(stops.some(s=>s.p.type==="fruit")) n = Math.max(n, 6);
-  if(stops.some(s=>s.p.type==="allotment" || s.p.type==="hops")) n = Math.max(n, 10);
-  const SPACE = {bush:4, grape:8, cactus:6, mushroom:6, belladonna:6, seaweed:6, coral:6};
-  stops.forEach(s=>{ if(SPACE[s.p.type]) n = Math.max(n, SPACE[s.p.type]); });
-  return n;
+// Fruit trees and bushes need no space: you only check their health and can leave the fruit on them
+const HARVEST_SPACE = {allotment:10, hops:10, grape:8, cactus:6, mushroom:6, belladonna:6, seaweed:6, coral:6};
+const stopSpace = s => s.p.type==="herb" ? (S.lo.herbsack ? 0 : Math.ceil(herbYield())+1) : (HARVEST_SPACE[s.p.type]||0);
+function harvestSpace(stops){ return Math.max(0, ...stops.map(stopSpace)); }
+/* Does this trip fit in `cap` slots? Saplings, seeds and logs are used up as you go, so the free space
+   a harvest needs only has to be there when you reach that patch, not at the bank. */
+function tripFits(stops, cap){
+  stops = tabsFirst(stops);   // check in the order you'll actually do the steps
+  const all = layout(stops).slots;
+  if(all > cap) return false;
+  if(all + harvestSpace(stops) <= cap) return true;
+  for(let i=0;i<stops.length;i++){
+    const need = stopSpace(stops[i]); if(!need) continue;
+    if(layout(stops.slice(i)).slots + need > cap) return false;   // what you still carry when you get there
+  }
+  return true;
 }
 const isLastStop = u=>u[0].p.cluster==="fossil";
 /* Inside each trip: steps that teleport with a tablet go first, then steps that use a teleport scroll,
@@ -1553,7 +1561,7 @@ function splitTrips(stops, want){
     const trips = []; let cur = [];
     for(const u of units){
       const test = cur.concat(u); markWalk(test);
-      if(cur.length && layout(test).slots + harvestSpace(test) > cap){ trips.push(cur); cur = u.slice(); }
+      if(cur.length && !tripFits(test, cap)){ trips.push(cur); cur = u.slice(); }
       else cur = test;
     }
     if(cur.length) trips.push(cur);
@@ -1569,7 +1577,7 @@ function splitTrips(stops, want){
     return k; };
   const idx = new Map(units.map((u,i)=>[u,i]));
   const fits = (units_, cap)=>{ const t = units_.slice().sort((a,b)=>idx.get(a)-idx.get(b)).flat(); markWalk(t);
-    return layout(t).slots + harvestSpace(t) <= cap; };
+    return tripFits(t, cap); };
   const pack = cap=>{
     const order = [], groups = new Map();
     // Fossil Island always ends the run: keep it out of the packing and add it to the last trip at the end
