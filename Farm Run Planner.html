@@ -1216,7 +1216,7 @@ function renderControls(){
   });
   const byLabel = (a,b)=>TYPES[a].label.localeCompare(TYPES[b].label);
   // Patch types with a single crop have nothing to choose, so they're left out
-  const choice = k => CROPS[k].length > 1 && !PATCHES.filter(p=>p.type===k).every(p=>omitIds().includes(p.id));   // hidden when every patch of the type is omitted
+  const choice = k => CROPS[k].length > 1 && !PATCHES.filter(p=>p.type===k).every(p=>omitIds().includes(p.id) || lockWhy(p).length);   // hidden when every patch of the type is omitted (or locked)
   const spOv = SPECIAL.filter(choice).sort(byLabel);
   const ovKeys = Object.keys(TYPES).filter(k=>!TYPES[k].group && choice(k)).sort(byLabel).concat(spOv.length ? ["—special", ...spOv] : []);
   $("overrides").innerHTML = ovKeys.map(k=>{
