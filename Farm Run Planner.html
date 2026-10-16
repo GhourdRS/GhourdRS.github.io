@@ -1574,9 +1574,15 @@ function splitTrips(stops, want){
   if(want===undefined) want = S.trips||0;
   let units = [];
   stops.forEach((s,i)=>{ const prev=stops[i-1]; if(prev && s.p.cluster && prev.p.cluster===s.p.cluster) units[units.length-1].push(s); else units.push([s]); });
-  // Steps that teleport with the Pendant of Ates always go in the same trip, one after another
-  const atesU = units.filter(u=>u[0].best && u[0].best[0]==="ates");
-  if(atesU.length>1){ const at = units.indexOf(atesU[0]); units = units.filter(u=>!atesU.includes(u)); units.splice(at, 0, atesU.flat()); }
+  /* Steps that use the same worn teleport item go in the same trip, one after another:
+     the Pendant of Ates, and jewellery-box items worn instead of using the house jewellery box
+     (games necklace, skills necklace, combat bracelet, ring of wealth, amulet of glory) */
+  const GROUP_KEYS = ["ates", ...Object.keys(POH_ALT).filter(k=>POH_ALT[k].startsWith("jb_"))];
+  GROUP_KEYS.forEach(key=>{
+    const same = units.filter(u=>u[0].best && u[0].best[0]===key);
+    if(same.length<2) return;
+    const at = units.indexOf(same[0]); units = units.filter(u=>!same.includes(u)); units.splice(at, 0, same.flat());
+  });
   const greedy = cap=>{
     const trips = []; let cur = [];
     for(const u of units){
@@ -1903,9 +1909,14 @@ function mapAt(pts, title){
 /* Full-size OSRS Wiki map centred on the step's first patch */
 
 /* Patches at the same spot (same cluster, one after another) form a single step */
+/* A new numbered step starts when you teleport somewhere new. On Fossil Island you walk the whole way,
+   but the hardwood trees, the bird houses and the underwater seaweed each get their own step (in that order). */
+const FOSSIL_PART = {hardwood:"trees", birdhouse:"birdhouses", seaweed:"seaweed"};
+const newStep = (prev, s) => !(prev && s.p.cluster && prev.p.cluster===s.p.cluster)
+  || (s.p.cluster==="fossil" && FOSSIL_PART[s.p.type]!==FOSSIL_PART[prev.p.type]);
 function numberSteps(stops){
   let n = 0;
-  stops.forEach((s,i)=>{ const prev = stops[i-1]; if(!(prev && s.p.cluster && prev.p.cluster===s.p.cluster)) n++; s.n = n; });
+  stops.forEach((s,i)=>{ if(newStep(stops[i-1], s)) n++; s.n = n; });
 }
 /* Patches in one step can be in different spots; when the spot changes, show where to run */
 const spotOf = s => s.p.spot || s.p.cluster || s.p.id;
@@ -2055,7 +2066,7 @@ function renderRoute(){
   const trips = splitTrips(stops);
   // Trips can regroup steps by teleport item, so number the steps in the order you'll actually do them
   let stepNo = 0;
-  trips.forEach(t=>t.forEach((s,i)=>{ const prev = t[i-1]; if(!(prev && s.p.cluster && prev.p.cluster===s.p.cluster)) stepNo++; s.n = stepNo; }));
+  trips.forEach(t=>t.forEach((s,i)=>{ if(newStep(t[i-1], s)) stepNo++; s.n = stepNo; }));
   renderLoadout(trips);
   $("routeTabs").innerHTML = $("loTabs").innerHTML;
 
@@ -2073,8 +2084,9 @@ function renderRoute(){
       const s0 = group[0], ids = group.map(s=>s.p.id);
       const done = ids.every(id=>S.done.includes(id));
       const where = baseName(s0.p.name);
+      const sw = s0.walk && SPOT_WALK[spotOf(s0)], swm = sw && mushFrom(sw, spotOf(s0));
       const travel = s0.walk
-        ? `<div class="how">Walk from the previous patch</div>`
+        ? (sw ? `<div class="how"${swm?tipAttr(mushTip(swm)):""}>→ ${sw}</div>` : `<div class="how">Walk from the previous patch</div>`)
         : (()=>{ const mb = mushFrom(s0.best[1]), ma = s0.alt && mushFrom(s0.alt[1]);
             return `<div class="how"${mb?tipAttr(mushTip(mb)):""}>${s0.best[1]}</div>${s0.alt?`<div class="alt"${ma?tipAttr(mushTip(ma)):""}>Backup: ${s0.alt[1]}</div>`:''}`; })();
       const types = [...new Set(group.map(s=>TYPES[s.p.type].label))].join(" · ");
