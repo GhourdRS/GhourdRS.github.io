@@ -66,6 +66,8 @@ h1{font-family:var(--display);font-weight:800;font-size:clamp(28px,4vw,40px);mar
 .manlv input{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--sunk);color:var(--fg);font:600 20px var(--body);padding:5px 8px;color-scheme:light dark}
 .manlv input:focus{outline:none;border-color:var(--accent)}
 .plist .mq{margin:0;flex:none;accent-color:var(--accent);width:16px;height:16px;align-self:center}
+.plist .plhead{display:block;margin:8px 0 2px;color:var(--muted);font:700 12px var(--display);letter-spacing:.06em;text-transform:uppercase}
+.plist .plhead:first-child{margin-top:2px}
 .mqtools{display:flex;justify-content:flex-end;margin:6px 0 2px}
 .plist{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:2px;font-size:14px}
 .plist li{display:flex;gap:8px;align-items:baseline}
@@ -1277,14 +1279,21 @@ function renderPlayer(){
       <div class="pstat">${wikiLink("Farming","Farming")} <span class="big">${S.lvl}</span> <span style="margin-left:14px">${wikiLink("Magic","Magic")}</span> <span class="big">${S.magic||"–"}</span> <span style="margin-left:14px">${wikiLink("Hunter","Hunter")}</span> <span class="big">${S.hunter||"–"}</span></div>
       <p class="note" style="margin:0">Synced ${new Date(P.at).toLocaleString()}. Press the arrow again to refresh.</p>
       <details class="sub"><summary>Quests &amp; diaries used for routing (${done}/${QUESTS.length})</summary>
-        <ul class="plist">${QUESTS.map(q=>{ const ok=S.quests.includes(q[0]);
-          return `<li><span class="${ok?'ok':'no'}">${ok?'✓':'✗'}</span><span>${wikiLink(qPage(q),q[1])} <small>${q[2]}</small></span></li>`; }).join("")}</ul>
+        <ul class="plist">${questListHtml(q=>{ const ok=S.quests.includes(q[0]);
+          return `<li><span class="${ok?'ok':'no'}">${ok?'✓':'✗'}</span><span>${wikiLink(qPage(q),q[1])} <small>${q[2]}</small></span></li>`; })}</ul>
       </details>
     </div>`;
   } else if(!lookupState.busy && !lookupState.error){
     h += `<p class="note">Enter your in-game name to load your Farming level, quests and diaries. Your profile needs to be uploaded with the RuneProfile plugin in RuneLite.</p>`;
   }
   box.innerHTML = h;
+}
+/* Quests & diaries list: achievement diaries first, then quests, each A–Z */
+function questListHtml(row){
+  const isDiary = q => / diary$/i.test(q[1]);
+  const az = l => l.slice().sort((a,b)=>a[1].localeCompare(b[1]));
+  return [["Achievement diaries", az(QUESTS.filter(isDiary))], ["Quests", az(QUESTS.filter(q=>!isDiary(q)))]]
+    .filter(([,l])=>l.length).map(([h,l])=>`<li class="plhead">${h}</li>`+l.map(row).join("")).join("");
 }
 /* Manual mode: no RuneProfile. Type your levels and tick the quests and diaries you've done. */
 function manualPlayerHtml(){
@@ -1294,8 +1303,8 @@ function manualPlayerHtml(){
     <div class="manlv">${lv("man_lvl","Farming",S.lvl||1)}${lv("man_magic","Magic",S.magic||1)}${lv("man_hunter","Hunter",S.hunter||1)}</div>
     <details class="sub" ${S.manualOpen?"open":""} id="manQuests"><summary>Quests &amp; diaries used for routing (${done}/${QUESTS.length})</summary>
       <div class="mqtools"><button type="button" class="chipbtn" id="mqAll">${all?"Uncheck all":"Check all"}</button></div>
-      <ul class="plist">${QUESTS.map(q=>{ const ok=S.quests.includes(q[0]);
-        return `<li><input type="checkbox" class="mq" id="mq_${q[0]}" ${ok?"checked":""} aria-label="${esc(q[1])}"><span>${wikiLink(qPage(q),q[1])} <small>${q[2]}</small></span></li>`; }).join("")}</ul>
+      <ul class="plist">${questListHtml(q=>{ const ok=S.quests.includes(q[0]);
+        return `<li><input type="checkbox" class="mq" id="mq_${q[0]}" ${ok?"checked":""} aria-label="${esc(q[1])}"><span>${wikiLink(qPage(q),q[1])} <small>${q[2]}</small></span></li>`; })}</ul>
     </details>
   </div>`;
 }
