@@ -350,7 +350,6 @@ footer{margin-top:22px;color:var(--muted);font-size:13.5px;max-width:75ch}
       </div>
       <p class="sub">Look up your character, tick the teleports you have, and get every patch you can use in route order with the best crop and fastest way there. Your Farming level, quests and diaries come from RuneProfile.</p>
       <p class="note">Ctrl + click (⌘ + click on Mac) any option's name to open its OSRS Wiki page.</p>
-      <p class="credit">Created by <span class="rpwrap"><a id="creditLink" href="https://runeprofile.com/Ghourd" target="_blank" rel="noopener">Ghourd</a><span class="rppop" id="rpPop" role="dialog" aria-label="Ghourd's RuneProfile" hidden></span></span></p>
     </div>
   </header>
   <div class="toolbar">
@@ -2922,12 +2921,6 @@ async function showRp(){
     pop.innerHTML = `<div class="rpname">${RP_ME}</div><div class="rpsub">Couldn't load the preview right now. Click the name to open the RuneProfile.</div>`;
   }
 }
-let rpHide = null;
-const rpWrap = $("creditLink").parentNode;
-rpWrap.addEventListener("mouseenter", ()=>{ clearTimeout(rpHide); showRp(); });
-rpWrap.addEventListener("mouseleave", ()=>{ rpHide = setTimeout(()=>{ $("rpPop").hidden = true; }, 150); });
-$("creditLink").addEventListener("focus", showRp);
-$("creditLink").addEventListener("blur", ()=>{ $("rpPop").hidden = true; });
 /* ---------- Export / import: move timers and settings to another device ---------- */
 const bkpMsg = (t, ok)=>{ const m = $("bkpMsg"); m.textContent = t; m.hidden = !t; m.style.color = ok===false ? "var(--warn)" : ""; };
 $("exportBtn").addEventListener("click", ()=>{
