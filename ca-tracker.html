@@ -82,6 +82,12 @@ li.done .nm{color:var(--ok);text-decoration:none}
 #msg{background:#222;border:2px solid #000;border-radius:3px}
 .tipbox{background:#222;border:2px solid #000;box-shadow:inset 0 0 0 1px var(--gold),0 6px 18px rgba(0,0,0,.6);border-radius:3px}
 .combo{display:inline-flex}
+.combo[hidden],.tools button[hidden]{display:none}
+.mode{display:inline-flex}
+.mode button{border-radius:0}
+.mode button:first-child{border-top-left-radius:6px;border-bottom-left-radius:6px}
+.mode button:last-child{border-top-right-radius:6px;border-bottom-right-radius:6px;border-left:0}
+.mode button.on{background:var(--gold);color:#241a06;border-color:var(--gold);font-weight:700}
 .combo input{border-top-right-radius:0;border-bottom-right-radius:0;border-right:0}
 .combo button{border-top-left-radius:0;border-bottom-left-radius:0;padding:5px 12px;font-size:18px;line-height:1}
 .bar{position:static}
@@ -211,7 +217,7 @@ header.min .bar{min-width:0}
     <span class="tip"><button class="info" aria-describedby="tipbox" aria-label="Shortcuts and tips">i</button>
       <div class="tipbox" id="tipbox" role="tooltip">
         <b class="ti">Info</b>
-        <p class="tipinfo">RuneProfile plugin must be synced within RuneLite Plugin Hub for target account in order to use this tool.</p>
+        <p class="tipinfo">RuneProfile mode: the RuneProfile plugin must be synced within RuneLite Plugin Hub for the target account. Manual mode: no RuneProfile needed, tick tasks yourself and they're saved in this browser.</p>
         <b class="ti">How to set up RuneProfile</b>
         <p class="tipinfo"><a href="https://www.runeprofile.com/info/guide" target="_blank" rel="noopener">https://www.runeprofile.com/info/guide</a></p>
         <dl>
@@ -248,6 +254,7 @@ header.min .bar{min-width:0}
   </div>
   <div id="hdrTools">
   <div class="tools">
+    <span class="mode" role="group" aria-label="Where completed tasks come from"><button type="button" id="modeRp" title="Load completed tasks from RuneProfile">RuneProfile</button><button type="button" id="modeMan" title="No RuneProfile: tick tasks yourself">Manual</button></span>
     <span class="combo"><input type="text" id="rsn" placeholder="Username" aria-label="RuneScape name"><button class="primary" id="sync" title="Sync from RuneProfile" aria-label="Sync from RuneProfile">&rarr;</button></span>
     <input type="text" id="q" placeholder="Search" aria-label="Search">
     <button id="markall" title="Select every task currently shown. Counts as a manual selection.">Mark all complete</button>
@@ -278,11 +285,15 @@ header.min .bar{min-width:0}
 const TIERS=[["Easy",1,"--t1"],["Medium",2,"--t2"],["Hard",3,"--t3"],["Elite",4,"--t4"],["Master",5,"--t5"],["Grandmaster",6,"--t6"]];
 const WIKI="https://oldschool.runescape.wiki/api.php?action=bucket&format=json&origin=*&query="+encodeURIComponent("bucket('combat_achievement').select('id','name','monster','tier','type','task').limit(2000).run()");
 const $=id=>document.getElementById(id), LS=localStorage;
-let synced=new Set(JSON.parse(localStorage.getItem("ca-synced")||"[]"));
-let tasks=[], done=new Set(JSON.parse(LS.getItem("ca-done")||"[]")), tierOn=new Set(TIERS.map(t=>t[0]));
-const save=()=>{try{LS.setItem("ca-done",JSON.stringify([...done]))}catch(e){}};
-// On launch, drop manual selections: keep only tasks from the last RuneProfile sync
-done=new Set([...done].filter(i=>synced.has(i)));save();
+// Manual mode: no RuneProfile. Ticks are kept in their own list ("ca-done-manual") and survive refreshes.
+let manual=LS.getItem("ca-mode")==="manual";
+const doneKey=()=>manual?"ca-done-manual":"ca-done";
+const rpSynced=()=>new Set(JSON.parse(LS.getItem("ca-synced")||"[]"));
+let synced=manual?new Set():rpSynced();
+let tasks=[], done=new Set(JSON.parse(LS.getItem(doneKey())||LS.getItem("ca-done")||"[]")), tierOn=new Set(TIERS.map(t=>t[0]));
+const save=()=>{try{LS.setItem(doneKey(),JSON.stringify([...done]))}catch(e){}};
+// RuneProfile mode, on launch: drop hand-ticked selections and keep only tasks from the last sync
+if(!manual)done=new Set([...done].filter(i=>synced.has(i)));save();
 const msg=(t,err)=>{const m=$("msg");m.textContent=t;m.className=err?"err":"";m.style.display=t?"block":"none"};
 const tierIdx=v=>{if(typeof v==="number")return v-1;const i=TIERS.findIndex(t=>t[0].toLowerCase()===String(v).toLowerCase());return i};
 const pts=t=>TIERS[t.tier][1];
@@ -420,8 +431,8 @@ function render(){
     const right=document.createElement("span");right.className="right";
     const list=by[b],allSel=list.every(t=>done.has(t.id));
     const ba=document.createElement("button");ba.type="button";ba.className="bossall";
-    ba.textContent=allSel?"Revert":"Select all";
-    ba.title=allSel?"Return this boss's visible tasks to your RuneProfile data":"Select every visible task for this boss";
+    ba.textContent=allSel?(manual?"Clear":"Revert"):"Select all";
+    ba.title=allSel?(manual?"Deselect this boss's visible tasks":"Return this boss's visible tasks to your RuneProfile data"):"Select every visible task for this boss";
     ba.onclick=e=>{e.preventDefault();e.stopPropagation();
       list.forEach(t=>{if(allSel){synced.has(t.id)?done.add(t.id):done.delete(t.id)}else done.add(t.id)});
       save();render()};
@@ -473,11 +484,13 @@ function extract(j){
 }
 function applyRows(rows,src,replace){
   const ids=rows.filter(r=>r[1]).map(r=>r[0]);
+  if(manual)return;   // switched to Manual while the sync was running
   if(!ids.length)return msg(src+" reports 0 completed tasks, so nothing was changed. The profile may not have been updated from RuneLite yet.",1);
   const before=done.size;if(replace)done=new Set(ids);else ids.forEach(i=>done.add(i));synced=new Set(ids);try{LS.setItem("ca-synced",JSON.stringify(ids))}catch(e){}save();render();
   msg("Synced from "+src+": "+ids.length+" completed tasks.");
 }
 async function doSync(replace){
+  if(manual)return;
   const n=$("rsn").value.trim();if(!n)return msg("Enter your RuneScape name first.",1);
   const prevAcct=(LS.getItem("ca-acct")||LS.getItem("ca-rsn")||"").toLowerCase();
   const changed=prevAcct&&prevAcct!==n.toLowerCase();
@@ -500,7 +513,29 @@ $("rsn").oninput=()=>{try{LS.setItem("ca-rsn",$("rsn").value.trim())}catch(e){}}
 $("clearman").onclick=()=>{const n=manualCount();
   if(!n)return msg("No manual selections to clear.");
   done=new Set([...done].filter(i=>synced.has(i)));save();render();msg("Cleared "+n+" manual selections.")};
-$("reset").onclick=()=>{done=new Set();synced=new Set();try{LS.removeItem("ca-synced")}catch(e){}save();render();msg("Cleared all selections.")};
+$("reset").onclick=()=>{done=new Set();if(!manual){synced=new Set();try{LS.removeItem("ca-synced")}catch(e){}}save();render();msg("Cleared all selections.")};
+function showMode(){
+  $("modeRp").classList.toggle("on",!manual);$("modeMan").classList.toggle("on",manual);
+  $("modeRp").setAttribute("aria-pressed",!manual);$("modeMan").setAttribute("aria-pressed",manual);
+  document.querySelector(".combo").hidden=manual;$("clearman").hidden=manual;
+  $("markall").title=manual?"Select every task currently shown.":"Select every task currently shown. Counts as a manual selection.";
+}
+function setMode(m){
+  if(m===manual)return;
+  manual=m;try{LS.setItem("ca-mode",m?"manual":"rp")}catch(e){}
+  if(m){
+    // first time in Manual: start from what's ticked now
+    const saved=LS.getItem("ca-done-manual");
+    done=new Set(saved?JSON.parse(saved):[...done]);synced=new Set();save();
+    msg("Manual mode: tick the tasks you've done. Your ticks are saved in this browser.");
+  }else{
+    synced=rpSynced();done=new Set(JSON.parse(LS.getItem("ca-done")||"[]").filter(i=>synced.has(i)));save();
+    msg("");if(tasks.length&&$("rsn").value.trim())doSync(true);
+  }
+  showMode();render();
+}
+$("modeRp").onclick=()=>setMode(false);$("modeMan").onclick=()=>setMode(true);
+showMode();
 $("markall").onclick=()=>{if(!visible.length)return msg("No visible tasks to mark.");visible.forEach(t=>done.add(t.id));save();render();msg("Marked "+visible.length+" visible tasks complete as manual selections.")};
 $("selall").onclick=()=>{if(tierOn.size===TIERS.length)tierOn.clear();else TIERS.forEach(t=>tierOn.add(t[0]));render()};
 $("rsn").onkeydown=e=>{if(e.key==="Enter")doSync()};
@@ -523,7 +558,7 @@ $("q").oninput=render;$("show").onchange=()=>{try{LS.setItem("ca-show",$("show")
   set(saved==null ? window.matchMedia("(max-width:700px)").matches : saved==="1");
   b.onclick = ()=> set(!h.classList.contains("min"));
 })();
-load().then(()=>{loadThresholds();loadPct();if(tasks.length&&$("rsn").value.trim())doSync(true)});
+load().then(()=>{loadThresholds();loadPct();if(!manual&&tasks.length&&$("rsn").value.trim())doSync(true)});
 </script>
 </body>
 </html>
