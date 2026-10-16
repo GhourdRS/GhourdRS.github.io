@@ -68,6 +68,10 @@ h1{font-family:var(--display);font-weight:800;font-size:clamp(28px,4vw,40px);mar
 .plist .mq{margin:0;flex:none;accent-color:var(--accent);width:16px;height:16px;align-self:center}
 .plist .plhead{display:block;margin:8px 0 2px;color:var(--muted);font:700 12px var(--display);letter-spacing:.06em;text-transform:uppercase}
 .plist .plhead:first-child{margin-top:2px}
+#manQuests .plhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px}
+#manQuests .plhead:first-child{margin-top:4px}
+#manQuests .plhead .chipbtn{font:600 13px var(--body);letter-spacing:0;text-transform:none;padding:2px 10px}
+#manQuests .mcape{margin-bottom:10px}
 .mqtools{display:flex;justify-content:flex-end;margin:6px 0 2px}
 .plist{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:2px;font-size:14px}
 .plist li{display:flex;gap:8px;align-items:baseline}
@@ -1258,13 +1262,9 @@ function renderPlayer(){
   document.querySelectorAll("[data-pmode]").forEach(b=>{ const on = (b.dataset.pmode==="manual")===!!S.manual; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
   $("lookup").hidden = !!S.manual;
   if(S.manual){
-    if(!$("man_lvl")){ box.innerHTML = manualPlayerHtml(); return; }
-    // already showing: update in place, so typing or ticking never rebuilds the box under you
-    [["man_lvl","lvl"],["man_magic","magic"],["man_hunter","hunter"]].forEach(([id,k])=>{ const el=$(id); if(document.activeElement!==el) el.value = S[k]||1; });
-    QUESTS.forEach(q=>{ const el=$("mq_"+q[0]); if(el) el.checked = S.quests.includes(q[0]); });
-    const done = QUESTS.filter(q=>S.quests.includes(q[0])).length;
-    $("manQuests").querySelector("summary").innerHTML = `Quests &amp; diaries used for routing (${done}/${QUESTS.length})`;
-    $("mqAll").textContent = done===QUESTS.length ? "Uncheck all" : "Check all";
+    // Rebuilt just after the current event (a level box's change fires while it loses focus), keeping focus where it was
+    setTimeout(()=>{ if(!S.manual) return; const a = document.activeElement, fid = box.contains(a) ? a.id : null;
+      box.innerHTML = manualPlayerHtml(); if(fid && $(fid)) $(fid).focus(); }, 0);
     return;
   }
   if(document.activeElement!==$("rsn") && P) $("rsn").value = P.name;
@@ -1296,15 +1296,25 @@ function questListHtml(row){
     .filter(([,l])=>l.length).map(([h,l])=>`<li class="plhead">${h}</li>`+l.map(row).join("")).join("");
 }
 /* Manual mode: no RuneProfile. Type your levels and tick the quests and diaries you've done. */
+const isDiaryQ = q => / diary$/i.test(q[1]);
+const MQ_GROUPS = {diary:{head:"Achievement diaries", cape:"allDiaries", capeName:"Achievement diary cape", capePage:"Achievement diary cape", note:"every achievement diary done"},
+                   quest:{head:"Quests", cape:"allQuests", capeName:"Quest point cape", capePage:"Quest point cape", note:"every quest done"}};
+const mqIds = g => QUESTS.filter(q=>(g==="diary")===isDiaryQ(q)).map(q=>q[0]);
 function manualPlayerHtml(){
-  const done = QUESTS.filter(q=>S.quests.includes(q[0])).length, all = done===QUESTS.length;
-  const lv = (id, label, v) => `<label>${wikiLink(label,label)}<input type="number" id="${id}" min="1" max="99" step="1" inputmode="numeric" value="${v}"></label>`;
+  const done = QUESTS.filter(q=>S.quests.includes(q[0])).length;
+  const lv = (id, label, v, use) => `<label${use?` title="${esc(use)}"`:""}>${wikiLink(label,label).replace("<a ",'<a tabindex="-1" ')}<input type="number" id="${id}" min="1" max="99" step="1" inputmode="numeric" value="${v}"></label>`;
+  const row = q=>{ const ok=S.quests.includes(q[0]);
+    return `<li><input type="checkbox" class="mq" id="mq_${q[0]}" ${ok?"checked":""} aria-label="${esc(q[1])}"><span>${wikiLink(qPage(q),q[1])} <small>${q[2]}</small></span></li>`; };
+  const group = g=>{ const G = MQ_GROUPS[g], ids = mqIds(g), all = ids.every(id=>S.quests.includes(id));
+    const list = QUESTS.filter(q=>ids.includes(q[0])).sort((a,b)=>a[1].localeCompare(b[1]));
+    return `<li class="plhead"><span>${G.head}</span><button type="button" class="chipbtn" data-mqall="${g}">${all?"Uncheck all":"Check all"}</button></li>
+      <li class="mcape"><input type="checkbox" class="mq" id="mcape_${g}" ${S[G.cape]?"checked":""} aria-label="${G.capeName}"><span>${wikiLink(G.capePage,G.capeName)} <small>${G.note}; ticks every line below</small></span></li>
+      ${list.map(row).join("")}`; };
   return `<div class="pinfo">
-    <div class="manlv">${lv("man_lvl","Farming",S.lvl||1)}${lv("man_magic","Magic",S.magic||1)}${lv("man_hunter","Hunter",S.hunter||1)}</div>
+    <div class="manlv">${lv("man_lvl","Farming",S.lvl||1)}${lv("man_magic","Magic",S.magic||1)}${lv("man_hunter","Hunter",S.hunter||1)}
+      ${lv("man_agility","Agility",S.agility||1,"45: Woodcutting Guild river jump to Hosidius. 73: Stronghold roof shortcut to Trollheim")}${lv("man_sailing","Sailing",S.sailing||1,"51: Anglers' Retreat hardwood patch")}</div>
     <details class="sub" ${S.manualOpen?"open":""} id="manQuests"><summary>Quests &amp; diaries used for routing (${done}/${QUESTS.length})</summary>
-      <div class="mqtools"><button type="button" class="chipbtn" id="mqAll">${all?"Uncheck all":"Check all"}</button></div>
-      <ul class="plist">${questListHtml(q=>{ const ok=S.quests.includes(q[0]);
-        return `<li><input type="checkbox" class="mq" id="mq_${q[0]}" ${ok?"checked":""} aria-label="${esc(q[1])}"><span>${wikiLink(qPage(q),q[1])} <small>${q[2]}</small></span></li>`; })}</ul>
+      <ul class="plist">${group("diary")}${group("quest")}</ul>
     </details>
   </div>`;
 }
@@ -1316,7 +1326,7 @@ function setManual(on){
     S.player = {name:"", manual:true, at:Date.now()};
     if(S.lvl==null) S.lvl = 1;
     ["magic","hunter"].forEach(k=>{ if(S[k]==null) S[k] = 1; });
-    ["agility","sailing"].forEach(k=>{ if(S[k]==null) S[k] = 99; });   // not asked for here, so not held against you
+    ["agility","sailing"].forEach(k=>{ if(S[k]==null) S[k] = 1; });
     if(S.allQuests==null) S.allQuests = false;
     if(S.allDiaries==null) S.allDiaries = false;
     if(S.caTier==null) S.caTier = 0;
@@ -2113,7 +2123,7 @@ function renderRoute(){
   const planned = plan(), locked = planned.locked;
   // Trimming is slow on big runs, so reuse the last result until a setting that affects it changes
   // Saved with your settings, so removing a step keeps the rest of the plan as it was and only refills the freed space
-  const base = JSON.stringify([S.custom,S.omit,S.timers&&S.timers.only?readySig():0,S.types,S.over,S.trips,S.lo,S.poh,S.teles,S.qpcOwn,S.noTabs,S.combos,S.quests,S.lvl,S.magic,S.agility,S.hunter,S.sailing,S.caTier,S.prices&&S.prices.at]);
+  const base = JSON.stringify([S.custom,S.omit,S.timers&&S.timers.only?readySig():0,S.types,S.over,S.trips,S.lo,S.poh,S.teles,S.qpcOwn,S.allQuests,S.allDiaries,S.noTabs,S.combos,S.quests,S.lvl,S.magic,S.agility,S.hunter,S.sailing,S.caTier,S.prices&&S.prices.at]);
   const removedNow = S.removed||[], c = S.trimCache;
   const byId = Object.fromEntries(planned.stops.map(s=>[s.p.id,s]));
   const sameRemoved = c && c.removed.length===removedNow.length && c.removed.every(id=>removedNow.includes(id));
@@ -2753,8 +2763,10 @@ function renderAll(){ renderCustom(); renderControls(); renderRoute(); save(); }
 document.addEventListener("click", e=>{
   const pm = e.target.closest("[data-pmode]");
   if(pm){ setManual(pm.dataset.pmode==="manual"); return; }
-  if(e.target.closest("#mqAll")){
-    S.quests = QUESTS.every(q=>S.quests.includes(q[0])) ? [] : QUESTS.map(q=>q[0]);
+  const ga = e.target.closest("[data-mqall]");
+  if(ga){ const g = ga.dataset.mqall, ids = mqIds(g), all = ids.every(id=>S.quests.includes(id));
+    S.quests = all ? S.quests.filter(id=>!ids.includes(id)) : [...new Set([...S.quests, ...ids])];
+    if(all) S[MQ_GROUPS[g].cape] = false;   // can't have the cape without every line
     S.tab = 0; S.trimCache = null; save(); renderAll();
   }
 });
@@ -2779,7 +2791,10 @@ document.addEventListener("change", e=>{
   else if(id==="noTabs") S.noTabs = e.target.checked;
   else if(id==="qpcOwn") S.qpcOwn = e.target.checked;
   else if(id.startsWith("man_")){ const k = id.slice(4), v = Math.max(1, Math.min(99, Math.round(+e.target.value)||1)); S[k] = v; e.target.value = v; S.tab = 0; }
-  else if(id.startsWith("mq_")){ S.quests = toggle(S.quests, id.slice(3), e.target.checked); S.tab = 0; }
+  else if(id.startsWith("mq_")){ const q = id.slice(3); S.quests = toggle(S.quests, q, e.target.checked); S.tab = 0;
+    if(!e.target.checked) Object.keys(MQ_GROUPS).forEach(g=>{ if(mqIds(g).includes(q)) S[MQ_GROUPS[g].cape] = false; }); }
+  else if(id.startsWith("mcape_")){ const g = id.slice(6); S[MQ_GROUPS[g].cape] = e.target.checked; S.tab = 0;
+    if(e.target.checked) S.quests = [...new Set([...S.quests, ...mqIds(g)])]; }
   else if(id.startsWith("cb_")) S.combos = toggle(S.combos, id.slice(3), e.target.checked);
   else if(id==="poh_jbox") S.poh.jbox = +e.target.value;
   else if(id==="poh_xeric" || id==="poh_prefer" || id==="poh_digsite" || id==="poh_fairy" || id==="poh_spirit") S.poh[id.slice(4)] = e.target.checked;
