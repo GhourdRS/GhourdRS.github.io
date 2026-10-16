@@ -59,6 +59,14 @@ h1{font-family:var(--display);font-weight:800;font-size:clamp(28px,4vw,40px);mar
 .pinfo .pname{font-weight:700;font-size:17px}
 .pstat{display:flex;align-items:baseline;gap:8px;margin:4px 0}
 .pstat .big{font-size:28px}
+.pmode{display:flex;gap:6px;margin:0 0 10px}
+.pmode .chipbtn{flex:1}
+.manlv{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 8px}
+.manlv label{display:grid;gap:3px;font-size:14px;color:var(--muted)}
+.manlv input{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;background:var(--sunk);color:var(--fg);font:600 20px var(--body);padding:5px 8px;color-scheme:light dark}
+.manlv input:focus{outline:none;border-color:var(--accent)}
+.plist .mq{margin:0;flex:none;accent-color:var(--accent);width:16px;height:16px;align-self:center}
+.mqtools{display:flex;justify-content:flex-end;margin:6px 0 2px}
 .plist{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:2px;font-size:14px}
 .plist li{display:flex;gap:8px;align-items:baseline}
 .plist .ok{color:var(--accent);font-weight:700;width:1em}
@@ -416,6 +424,10 @@ footer{margin-top:22px;color:var(--muted);font-size:13.5px;max-width:75ch}
     <aside class="rail">
       <details class="panel" open data-k="player">
         <summary>Player</summary>
+        <div class="pmode" role="group" aria-label="Where your stats come from">
+          <button type="button" class="chipbtn" data-pmode="rp">RuneProfile</button>
+          <button type="button" class="chipbtn" data-pmode="manual">Enter manually</button>
+        </div>
         <form class="search" id="lookup" autocomplete="off">
           <input type="search" id="rsn" placeholder="In-game name" autocomplete="off" value="" maxlength="12" spellcheck="false" aria-label="In-game name">
           <button type="submit" id="lookupBtn" aria-label="Look up player">
@@ -1149,7 +1161,7 @@ const tPage = t => SCROLL_ITEM[t[0]] ||({fairy:"Fairy ring",spirit:"Spirit tree"
 /* How many inventories the selected run types need on a maxed account (all 99s, quests, diaries, teleports) */
 function maxedInventories(){
   const keep = {};
-  ["player","lvl","magic","agility","sailing","hunter","caTier","quests","allQuests","questsLeft","qpcOwn","allDiaries","teles","noTabs","poh","trips","done","lo"].forEach(k=>keep[k]=S[k]);
+  ["player","lvl","magic","agility","sailing","hunter","caTier","quests","allQuests","questsLeft","qpcOwn","manual","rpPlayer","manualOpen","allDiaries","teles","noTabs","poh","trips","done","lo"].forEach(k=>keep[k]=S[k]);
   try{
     Object.assign(S, {player:S.player||{name:"max",at:0}, lvl:99, magic:99, agility:99, sailing:99, hunter:99, caTier:6,
       quests:QUESTS.map(q=>q[0]), allQuests:true, allDiaries:true, teles:TELES.map(t=>t[0]), noTabs:false, trips:0, done:[],
@@ -1241,6 +1253,18 @@ function renderControls(){
 let lookupState = {busy:false, error:""};
 function renderPlayer(){
   const P = S.player, box = $("playerInfo");
+  document.querySelectorAll("[data-pmode]").forEach(b=>{ const on = (b.dataset.pmode==="manual")===!!S.manual; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); });
+  $("lookup").hidden = !!S.manual;
+  if(S.manual){
+    if(!$("man_lvl")){ box.innerHTML = manualPlayerHtml(); return; }
+    // already showing: update in place, so typing or ticking never rebuilds the box under you
+    [["man_lvl","lvl"],["man_magic","magic"],["man_hunter","hunter"]].forEach(([id,k])=>{ const el=$(id); if(document.activeElement!==el) el.value = S[k]||1; });
+    QUESTS.forEach(q=>{ const el=$("mq_"+q[0]); if(el) el.checked = S.quests.includes(q[0]); });
+    const done = QUESTS.filter(q=>S.quests.includes(q[0])).length;
+    $("manQuests").querySelector("summary").innerHTML = `Quests &amp; diaries used for routing (${done}/${QUESTS.length})`;
+    $("mqAll").textContent = done===QUESTS.length ? "Uncheck all" : "Check all";
+    return;
+  }
   if(document.activeElement!==$("rsn") && P) $("rsn").value = P.name;
   $("lookupBtn").disabled = lookupState.busy;
   let h = "";
@@ -1262,6 +1286,38 @@ function renderPlayer(){
   }
   box.innerHTML = h;
 }
+/* Manual mode: no RuneProfile. Type your levels and tick the quests and diaries you've done. */
+function manualPlayerHtml(){
+  const done = QUESTS.filter(q=>S.quests.includes(q[0])).length, all = done===QUESTS.length;
+  const lv = (id, label, v) => `<label>${wikiLink(label,label)}<input type="number" id="${id}" min="1" max="99" step="1" inputmode="numeric" value="${v}"></label>`;
+  return `<div class="pinfo">
+    <div class="manlv">${lv("man_lvl","Farming",S.lvl||1)}${lv("man_magic","Magic",S.magic||1)}${lv("man_hunter","Hunter",S.hunter||1)}</div>
+    <details class="sub" ${S.manualOpen?"open":""} id="manQuests"><summary>Quests &amp; diaries used for routing (${done}/${QUESTS.length})</summary>
+      <div class="mqtools"><button type="button" class="chipbtn" id="mqAll">${all?"Uncheck all":"Check all"}</button></div>
+      <ul class="plist">${QUESTS.map(q=>{ const ok=S.quests.includes(q[0]);
+        return `<li><input type="checkbox" class="mq" id="mq_${q[0]}" ${ok?"checked":""} aria-label="${esc(q[1])}"><span>${wikiLink(qPage(q),q[1])} <small>${q[2]}</small></span></li>`; }).join("")}</ul>
+    </details>
+  </div>`;
+}
+function setManual(on){
+  if(on===!!S.manual) return;
+  S.manual = on;
+  if(on){
+    if(S.player && !S.player.manual) S.rpPlayer = S.player.name;   // remembered for switching back
+    S.player = {name:"", manual:true, at:Date.now()};
+    if(S.lvl==null) S.lvl = 1;
+    ["magic","hunter"].forEach(k=>{ if(S[k]==null) S[k] = 1; });
+    ["agility","sailing"].forEach(k=>{ if(S[k]==null) S[k] = 99; });   // not asked for here, so not held against you
+    if(S.allQuests==null) S.allQuests = false;
+    if(S.allDiaries==null) S.allDiaries = false;
+    if(S.caTier==null) S.caTier = 0;
+  } else {
+    S.player = null;
+    if(S.rpPlayer){ $("rsn").value = S.rpPlayer; lookup(S.rpPlayer); }
+  }
+  S.trimCache = null; S.tab = 0;
+  renderAll();
+}
 function rpList(j, key){
   if(Array.isArray(j)) return j;
   if(j && Array.isArray(j.data)) return j.data;
@@ -1281,6 +1337,7 @@ async function lookup(name, keepTab){   // keepTab: a background refresh, so sta
       return r.json();
     });
     const [sk, qu, di] = await Promise.all([get("skills"), get("quests"), get("achievement-diaries")]);
+    if(S.manual){ lookupState = {busy:false, error:""}; return; }   // switched to manual while this was loading
     const ca = await get("combat-achievements").catch(()=>null);
     const farming = rpList(sk,"skills").find(x=>String(x.name).toLowerCase()==="farming");
     if(!farming) throw new Error("noskill");
@@ -2684,6 +2741,15 @@ document.addEventListener("click", e=>{
 function renderAll(){ renderCustom(); renderControls(); renderRoute(); save(); }
 
 /* ---------- Events ---------- */
+document.addEventListener("click", e=>{
+  const pm = e.target.closest("[data-pmode]");
+  if(pm){ setManual(pm.dataset.pmode==="manual"); return; }
+  if(e.target.closest("#mqAll")){
+    S.quests = QUESTS.every(q=>S.quests.includes(q[0])) ? [] : QUESTS.map(q=>q[0]);
+    S.tab = 0; S.trimCache = null; save(); renderAll();
+  }
+});
+document.addEventListener("toggle", e=>{ if(e.target.id==="manQuests"){ S.manualOpen = e.target.open; save(); } }, true);
 $("lookup").addEventListener("submit", e=>{ e.preventDefault(); lookup($("rsn").value); });
 
 document.addEventListener("change", e=>{
@@ -2703,6 +2769,8 @@ document.addEventListener("change", e=>{
   else if(id==="invCount"){ S.trips = +e.target.value; S.tab = 0; }
   else if(id==="noTabs") S.noTabs = e.target.checked;
   else if(id==="qpcOwn") S.qpcOwn = e.target.checked;
+  else if(id.startsWith("man_")){ const k = id.slice(4), v = Math.max(1, Math.min(99, Math.round(+e.target.value)||1)); S[k] = v; e.target.value = v; S.tab = 0; }
+  else if(id.startsWith("mq_")){ S.quests = toggle(S.quests, id.slice(3), e.target.checked); S.tab = 0; }
   else if(id.startsWith("cb_")) S.combos = toggle(S.combos, id.slice(3), e.target.checked);
   else if(id==="poh_jbox") S.poh.jbox = +e.target.value;
   else if(id==="poh_xeric" || id==="poh_prefer" || id==="poh_digsite" || id==="poh_fairy" || id==="poh_spirit") S.poh[id.slice(4)] = e.target.checked;
@@ -2769,8 +2837,8 @@ document.addEventListener("click", e=>{
     S.stepFold = {};
     renderRoute(); save();
   }
-  if(b.hasAttribute("data-reset-run")){ S.done=[]; tm().prev={}; loadPrices(true); if(S.player) lookup(S.player.name, true); S.removed=[]; S.stepFold={}; S.tab=0; renderAll(); }
-  if(b.hasAttribute("data-reset-keep")){ S.done=[]; tm().prev={}; loadPrices(true); if(S.player) lookup(S.player.name, true); S.stepFold={}; S.tab=0; renderRoute(); save(); }
+  if(b.hasAttribute("data-reset-run")){ S.done=[]; tm().prev={}; loadPrices(true); if(S.player && !S.manual) lookup(S.player.name, true); S.removed=[]; S.stepFold={}; S.tab=0; renderAll(); }
+  if(b.hasAttribute("data-reset-keep")){ S.done=[]; tm().prev={}; loadPrices(true); if(S.player && !S.manual) lookup(S.player.name, true); S.stepFold={}; S.tab=0; renderRoute(); save(); }
   if(b.dataset.fold){
     const k = b.dataset.fold, li = b.closest(".stop");
     S.stepFold = S.stepFold || {};
@@ -2997,7 +3065,7 @@ setInterval(()=>{
   if(S.timers && S.timers.only && sig!==lastReady){ renderAll(); loadPrices(true); } else { renderPicker("timers"); renderGrowing(); }
   lastReady = sig;
 }, 30000);
-if(S.player) lookup(S.player.name, true);   // refresh your character from RuneProfile every time the page opens
+if(S.player && !S.manual) lookup(S.player.name, true);   // refresh your character from RuneProfile every time the page opens
 loadPrices(true);   // fresh GE prices every time the page opens
 </script>
 </body>
