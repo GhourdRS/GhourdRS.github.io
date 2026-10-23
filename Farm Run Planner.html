@@ -508,6 +508,12 @@ footer{margin-top:22px;color:var(--muted);font-size:13.5px;max-width:75ch}
       <details class="panel" open data-k="poh">
         <summary>Player-owned house</summary>
         <div class="pohform">
+          <label for="poh_loc"><a class="wiki" href="https://oldschool.runescape.wiki/w/Portal_(Player-owned_house)" target="_blank" rel="noopener">House location</a></label>
+          <select id="poh_loc">
+            <option value="">Not set</option>
+            <option>Rimmington</option><option>Taverley</option><option>Pollnivneach</option><option>Hosidius</option><option>Rellekka</option>
+            <option>Aldarin</option><option>Brimhaven</option><option>Yanille</option><option>Prifddinas</option>
+          </select>
           <label for="poh_tele"><a class="wiki" href="https://oldschool.runescape.wiki/w/Teleport_to_House" target="_blank" rel="noopener">Getting to your house</a></label>
           <select id="poh_tele">
             <option value="none">I don't use my house</option>
@@ -858,9 +864,12 @@ const POH_ALT = {varrockTele:"nx_varrock",lumbTele:"nx_lumbridge",faladorTele:"n
 const POH_NAME = Object.assign(Object.fromEntries(NEXUS.map(n=>[n[0],`Portal nexus (${n[1]})`])),{
   jb_games:"Jewellery box (games necklace → Burthorpe)", jb_skills:"Jewellery box (skills necklace → Farming Guild)",
   jb_combat:"Jewellery box (combat bracelet → Ranging Guild)", jb_wealth:"Jewellery box (ring of wealth)", jb_glory:"Jewellery box (amulet of glory)", mx:"Mounted Xeric's talisman (Xeric's Glade)",
-  md:"Mounted digsite pendant (Fossil Island, House on the Hill)", pf:"House fairy ring", ps:"House spirit tree"});
+  md:"Mounted digsite pendant (Fossil Island, House on the Hill)", pf:"House fairy ring", ps:"House spirit tree", hp_tav:"House portal (Taverley)", hp_hos:"House portal (Hosidius)", hp_brim:"House portal (Brimhaven)"});
 const JBOX_LVL = {jb_games:1, jb_skills:2, jb_combat:2, jb_wealth:3, jb_glory:3};
-const isHouse = k => /^(nx_|jb_|mx$|md$|pf$|ps$)/.test(k);
+const isHouse = k => /^(nx_|jb_|hp_|mx$|md$|pf$|ps$)/.test(k);
+/* House in Taverley, Hosidius or Brimhaven: a house teleport (then out through the portal) lands where that town's redirected tablet does */
+const HOUSE_PORTAL = {pohTav:["hp_tav","Taverley"], pohHos:["hp_hos","Hosidius"], pohBrim:["hp_brim","Brimhaven"]};
+const HP_CITY = Object.fromEntries(Object.values(HOUSE_PORTAL));
 /* XP per patch and GP per XP (negative = cost). Trees: OSRS Wiki Farming training; herbs: per 10-patch run, Money making guide/Farming herbs. Sept 2026 prices. */
 const HERB_RUN = {Guam:[1570,25773],Marrentill:[1815,20785],Tarromin:[2104,15399],Harralander:[2687,25937],Ranarr:[3309,182639],Toadflax:[4088,176703],
   Irit:[5058,123353],Avantoe:[6317,149673],Kwuarm:[7914,168765],Snapdragon:[9903,167079],Huasca:[10905,152951],Cadantine:[11985,151141],
@@ -1135,6 +1144,7 @@ const has = k => {
   if(k==="roof") return S.quests.includes("fremHard") && (S.agility||1)>=73;
   if(isHouse(k)){
     if(S.poh.tele==="none") return false;
+    if(k.startsWith("hp_")) return S.poh.loc===HP_CITY[k];
     if(k==="mx") return S.poh.xeric;
     if(k==="md") return S.poh.digsite;
     if(k==="pf") return S.poh.fairy && S.quests.includes("ft2");
@@ -1224,7 +1234,7 @@ function renderControls(){
   }).join("");
   $("nxCount").textContent = S.poh.nexus.length+"/"+NEXUS.length;
   $("poh_digsite").checked = S.poh.digsite; $("poh_fairy").checked = S.poh.fairy; $("poh_spirit").checked = S.poh.spirit;
-  $("poh_tele").value = S.poh.tele; $("poh_jbox").value = S.poh.jbox;
+  $("poh_loc").value = S.poh.loc||""; $("poh_tele").value = S.poh.tele; $("poh_jbox").value = S.poh.jbox;
   $("noTabs").checked = !!S.noTabs;
   $("poh_tele").querySelector('option[value="tabs"]').disabled = !!S.noTabs;
   $("redirectChecks").closest("details").hidden = !!S.noTabs;
@@ -1441,6 +1451,10 @@ function withHouse(travel){
   const out = [];
   travel.forEach(t=>{
     const alt = t[0] && POH_ALT[t[0]];
+    // Your house is in this town: no tablet needed, the house portal is right there
+    const hp = t[0] && HOUSE_PORTAL[t[0]];
+    if(hp){ const rest = t[1].includes(", ") ? t[1].slice(t[1].indexOf(", ")+2) : "";
+      out.push([hp[0], `House teleport → leave through the house portal (${hp[1]})${rest?", "+rest:""}`, t[2]]); }
     // Fairy rings: the Quest point cape's Legends' Guild teleport lands 12 tiles from fairy ring B L R
     if(t[0]==="fairy") out.push(["qpcf", `Quest point cape → Legends' Guild, run east to the fairy ring: ${t[1].replace(/^Fairy ring /,"")}`, t[2]]);
     if(!alt){ out.push(t); return; }
@@ -2787,6 +2801,7 @@ document.addEventListener("change", e=>{
   else if(id.startsWith("fo_")) S.lo.outfit[id.slice(3)] = e.target.checked;
   else if(id.startsWith("lo_")) S.lo[id.slice(3)] = e.target.checked;
   else if(id==="poh_tele") S.poh.tele = e.target.value;
+  else if(id==="poh_loc") S.poh.loc = e.target.value;
   else if(id==="invCount"){ S.trips = +e.target.value; S.tab = 0; }
   else if(id==="noTabs") S.noTabs = e.target.checked;
   else if(id==="qpcOwn") S.qpcOwn = e.target.checked;
